@@ -19,10 +19,17 @@ def get_players() -> list:
         List of Player objects
     """
     
-    num_players = int(input("\nHow many players? (2-10): "))
+    # Initialize num_players 
+    num_players = 0
+
     while num_players < 2 or num_players > 10:
-        print("Please enter a number between 2 and 10")
-        num_players = int(input("How many players? (2-10): "))
+        try:
+            num_players = int(input("\nHow many players? (2-10): "))
+            if num_players < 2 or num_players > 10:
+                print("Please enter a number between 2 and 10")
+        except ValueError:
+            print("Please enter a valid number")
+            num_players = 0 # keep loop going
     
     players = []
     print()
