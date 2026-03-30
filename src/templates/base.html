@@ -1,0 +1,45 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <meta name="author" content="Ramon Ortega">
+        <meta name="description" content="CEN Lab Project - Chupi">
+        <meta name="keywords"
+            content="Chupi, game, CEN, CEN4020, CEN4090L, lab, project, Django, Python">
+
+        <!-- Bootstrap -->
+        <link rel="stylesheet" href="{% static 'vendors/bootstrap/bootstrap.min.css' %}" type="text/css">
+        
+        <!-- Random background from a list of pastel colors -->
+        <style>
+          body {
+            transition: background-color 0.3s ease;
+          }
+        </style>
+    </head>
+    
+    <body>
+        <div class="container my-3">
+            <main>
+                {% block content %}
+                {% endblock %}
+            </main>
+        </div>
+        <!-- Random background from a list of pastel colors -->
+        <script>
+            const colors = [
+                '#FFB3BA',
+                '#FFDFBA',
+                '#FFFFBA',
+                '#BAFFC9',
+                '#BAE1FF',
+                '#E8BAFF',
+                '#FFBAEF',
+            ];
+            const random = colors[Math.floor(Math.random() * colors.length)];
+            document.body.style.backgroundColor = random;
+        </script>
+    </body>
+</html>
