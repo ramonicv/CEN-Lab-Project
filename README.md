@@ -22,7 +22,7 @@ NOTES:
 `deactivate`                      Deactivate  
 
 ### Dependencies
-`pip install -r requirements.txt` Install dependencies
+`pip install -r requirements.txt` Install dependencies  
 `pip freeze > requirements.txt`   Save current packages  
 `pip list`                        Show installed packages  
 
