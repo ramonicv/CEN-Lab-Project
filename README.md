@@ -1,20 +1,19 @@
 # CEN-Lab-Project
-Mobile website - drinking game  
-Prototype name: "Chupi"
+Current version: Django website prototype - work-in-progress
 
-PROTOTYPE NOTES: 
-- No games are currently working, they just have placeholder rules and "game would play here..." notes
-- The logic and structure of the app is partly functional. 
-    - `src/` holds all the source code
-    - `src/core/` holds the base classes `GameBase` and `Player`
-    - `src/games/` holds the game classes/logic
+NOTES: 
+- The logic and structure of the app is as follows: 
+    - `src/` holds app source code
+    - `src/core/` holds base classes `GameBase` and `Player`
     - `src/media/` is *meant* to hold any images or data files (.png, .json, etc)
-- each main "module" directory contains a `__init__.py` file to allow python to recognize each directory as a module
+    - `src/templates/` holds base.html and any other global template files
+    - `src/game/` holds the entire current app view, url, and app logic, as well as templates for this app. This may be expanded in the future by adding more app directories, and using game as just the initial page
+- The app is managed using Django's `manage.py` which is in the root directory. All changes/additions to the app should be managed via manage.py if appropriate (if unsure, refer to the Django documentation or ask an LLM).
 
 ## Useful commands reference
 
 ### Running the app
-`python -m src.main`              Run the app (current directory must be root)
+`python manage.py runserver`      Start the app (current directory must be root)
 
 ### Virtual Environment
 `python3 -m venv .venv`           Create venv  
@@ -23,7 +22,7 @@ PROTOTYPE NOTES:
 `deactivate`                      Deactivate  
 
 ### Dependencies
-`pip install -r requirements.txt` Install packages  
+`pip install -r requirements.txt` Install dependencies
 `pip freeze > requirements.txt`   Save current packages  
 `pip list`                        Show installed packages  
 
