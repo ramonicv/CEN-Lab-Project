@@ -13,8 +13,8 @@
 
     <div style="Margin-top: 20px;">
         <button type="button" onclick="clearPlayers()">Clear List</button>
-        <button type="submit" id="start-btn" style="display:none; background-color: #4CAF50; color: white;" onclick="startGame()">
-            Start & Save Session
+        <button type="submit" id="select-game-btn" style="display:none; background-color: #4CAF50; color: white;" onclick="selectGame()">
+            Select Game
         </button>
     </div>
 </div>
@@ -30,14 +30,14 @@
     function render() {
         const players = getPlayers();
         const listContainer = document.getElementById('player-list');
-        const startBtn = document.getElementById('start-btn');
+        const selectGameBtn = document.getElementById('select-game-btn');
 
         // update 'player-count' html element based on players array length 
         document.getElementById('player-count').textContent = `${players.length} / ${MAX} players`;
         listContainer.innerHTML = players.map(p => `<div class="player-entry">${p}</div>`).join('');
         
         // Show start button if there are at least 2 players, hide input area if max reached
-        startBtn.style.display = players.length >= 2 ? 'inline-block' : 'none';
+        selectGameBtn.style.display = players.length >= 2 ? 'inline-block' : 'none';
         document.getElementById('input-area').style.display = players.length >= MAX ? 'none' : 'block';
     }
 
@@ -60,8 +60,8 @@
         render();
     }
     
-    function startGame() {
-        window.location.href = "{% url 'game_select' %}"; // update this when the game page exists; theoretically, it should go to the screen where you can select what game to play
+    function startGame() { 
+        // update this when the game page exists; theoretically, it should go to the screen where you can select what game to play
     }
 
     // attach enter key to addPlayer()
