@@ -64,6 +64,13 @@
                 window.location.href = '/game_select/';  // update this when the game page exists; theoretically, it should go to the screen where you can select what game to play
     }
 
+    // attach enter key to addPlayer()
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('name-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') addPlayer();
+        });
+        render();
+    });
     window.onload = render;
 </script>
 {% endblock %}
