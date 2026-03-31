@@ -22,9 +22,13 @@
 <script>
     const MAX = 10;
     const STORAGE_KEY = 'chupi_players';
+    
+    function getPlayers() {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    }
 
     function render() {
-        const players = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        const players = getPlayers();
         const listContainer = document.getElementById('player-list');
         const startBtn = document.getElementById('start-btn');
 
@@ -40,7 +44,7 @@
     function addPlayer() {
         const input = document.getElementById('name-input');
         const name = input.value.trim();
-        let players = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        let players = getPlayers();
 
         // Prevent duplicates (case-insensitive) and enforce max
         if (name && !players.some(p => p.toLowerCase() === name.toLowerCase()) && players.length < MAX) {
