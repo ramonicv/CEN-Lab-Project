@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="center-page">
+    <h1>Who's playing?</h1>
+    <p id="player-count">0 / 10 players</p>
+    <div id="player-list"></div>
+
+    <div id="input-area">
+        <input type="text" id="name-input" placeholder="Enter name" maxlength="20">
+        <button onclick="addPlayer()">Add Player</button>
+    </div>
+
+    <form method="POST" style="margin-top: 20px;">
+        {% csrf_token %}
+        <input type="hidden" name="player_json_data" id="hidden-json-input">
+        
+        <button type="button" onclick="clearPlayers()">Clear List</button>
+        <button type="submit" id="start-btn" style="display:none; background-color: #4CAF50; color: white;">
+            Start & Save Session
+        </button>
+    </form>
+</div>
+
+<script>
+    const MAX = 10;
+    const STORAGE_KEY = 'chupi_players';
+
+    function render() {
+        const players = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        const listContainer = document.getElementById('player-list');
+        const startBtn = document.getElementById('start-btn');
+        const hiddenInput = document.getElementById('hidden-json-input');
+
+        // Update UI
+        document.getElementById('player-count').textContent = `${players.length} / ${MAX} players`;
+        listContainer.innerHTML = players.map(p => `<div class="player-entry">${p}</div>`).join('');
+        
+        // Update the hidden input for Django
+        hiddenInput.value = JSON.stringify(players);
+
+        // Feature Logic: Show/Hide buttons
+        startBtn.style.display = players.length >= 2 ? 'inline-block' : 'none';
+        document.getElementById('input-area').style.display = players.length >= MAX ? 'none' : 'block';
+    }
+
+    function addPlayer() {
+        const input = document.getElementById('name-input');
+        const name = input.value.trim();
+        let players = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+        // Prevent duplicates (case-insensitive) and enforce max
+        if (name && !players.some(p => p.toLowerCase() === name.toLowerCase()) && players.length < MAX) {
+            players.push(name);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(players));
+            input.value = '';
+            render();
+        }
+    }
+
+    function clearPlayers() {
+        localStorage.removeItem(STORAGE_KEY);
+        render();
+    }
+
+    window.onload = render;
+</script>
+{% endblock %}
