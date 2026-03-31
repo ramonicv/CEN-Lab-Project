@@ -14,14 +14,5 @@ def signup(request):
 
     return render(request, 'game/signup.html')
 
-def export_players(request):
-    # Get the most recent session to export
-    last_session = GameSession.objects.last()
-    if last_session:
-        # Convert the string back to a Python list/dict to serve as JSON
-        data = json.loads(last_session.player_data)
-        return JsonResponse({"players": data}, safe=False)
-    return JsonResponse({"error": "No data found"}, status=404)
-
 def home(request):
     return render(request, 'game/home.html')
