@@ -27,16 +27,12 @@
         const players = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         const listContainer = document.getElementById('player-list');
         const startBtn = document.getElementById('start-btn');
-        const hiddenInput = document.getElementById('hidden-json-input');
 
-        // Update UI
+        // update 'player-count' html element based on players array length 
         document.getElementById('player-count').textContent = `${players.length} / ${MAX} players`;
         listContainer.innerHTML = players.map(p => `<div class="player-entry">${p}</div>`).join('');
         
-        // Update the hidden input for Django
-        hiddenInput.value = JSON.stringify(players);
-
-        // Feature Logic: Show/Hide buttons
+        // Show start button if there are at least 2 players, hide input area if max reached
         startBtn.style.display = players.length >= 2 ? 'inline-block' : 'none';
         document.getElementById('input-area').style.display = players.length >= MAX ? 'none' : 'block';
     }
