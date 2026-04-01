@@ -16,11 +16,13 @@
         font-weight: bold;
         margin: 1rem auto;
         border: 3px solid #ddd;
-        transition: transform 0.2s;
+        transition: transform 0.2s ease, opacity 0.25s ease;
     }
+
     .card-display.red { color: #e74c3c; }
     .card-display.black { color: #2c3e50; }
     .card-suit { font-size: 2rem; }
+
     .rule-box {
         background: rgba(255,255,255,0.7);
         border-radius: 12px;
@@ -30,11 +32,84 @@
         font-size: 1rem;
         text-align: center;
     }
+
     .player-turn {
         font-size: 1.2rem;
         font-weight: bold;
         margin-bottom: 0.5rem;
     }
+
+    /* Card Swipe Animation */
+    .swipe-out {
+        transform: translateX(-120px) rotate(-8deg);
+        opacity: 0;
+    }
+
+    .swipe-in {
+        transform: translateX(120px) rotate(8deg);
+        opacity: 0;
+        animation: swipeIn 0.25s forwards ease-out;
+    }
+
+    @keyframes swipeIn {
+        to {
+            transform: translateX(0) rotate(0);
+            opacity: 1;
+        }
+    }
+
+    /*Hold to go back - button */
+    #back-button {
+        position: relative;
+        overflow: hidden;
+    }
+
+    #back-button::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 3px;
+        width: 0%;
+        background: #f0ad4e;
+        transition: width 2s linear;
+    }
+
+    #back-button.holding::after {
+        width: 100%;
+    }
+
+    .game-btn {
+        font-weight: 600;
+        padding: 10px 14px;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+
+    #back-button {
+        background-color: rgba(255, 255, 255, 0.9);
+        border: 2px solid #6c757d;
+        color: #2c2c2c;
+    }
+
+    #restart-button {
+        background-color: #ffc107;
+        border: none;
+        color: #1f1f1f;
+    }
+
+    #back-button:hover,
+    #restart-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+    }
+
+    #back-button:active,
+    #restart-button:active {
+        transform: scale(0.96);
+    }
+
 </style>
 
 <div class="center-page text-center">
@@ -54,8 +129,15 @@
     <button class="btn btn-primary btn-lg mt-2" id="draw-btn" onclick="drawCard()">Tap to Draw a Card</button>
 
     <div class="mt-3">
-        <a href="{% url 'game_select' %}" class="btn btn-outline-secondary btn-sm">Back to Game Select</a>
-        <button class="btn btn-outline-warning btn-sm me-2" onclick="restartGame()">Restart</button>
+        <button id="back-button" class="game-btn">
+            Hold to Go Back
+        </button>
+
+        <button id="restart-button"
+                class="game-btn ms-2"
+                onclick="restartGame()">
+            Restart
+        </button>
     </div>
 </div>
 
@@ -132,6 +214,32 @@
         document.getElementById('cards-left').textContent = `${state.deck.length} cards remaining`;
     }
 
+    /*Card Swipe Animation Logic */
+    function animateCard(card, isRed) {
+        const cardDisplay = document.getElementById('card-display');
+
+        // swipe out
+        cardDisplay.classList.add('swipe-out');
+
+        setTimeout(() => {
+
+            // update content
+            cardDisplay.className = `card-display ${isRed ? 'red' : 'black'}`;
+            document.getElementById('card-value').textContent = card.value;
+            document.getElementById('card-suit').textContent = card.suit;
+            document.getElementById('rule-box').textContent = RULES[card.value];
+
+            // swipe in
+            cardDisplay.classList.remove('swipe-out');
+            cardDisplay.classList.add('swipe-in');
+
+            setTimeout(() => {
+                cardDisplay.classList.remove('swipe-in');
+            }, 250);
+
+        }, 150);
+    }
+
     function drawCard() {
         let state = getState();
         if (!state) state = initGame();
@@ -144,11 +252,7 @@
         const card = state.deck.pop();
         const isRed = RED_SUITS.includes(card.suit);
 
-        const cardDisplay = document.getElementById('card-display');
-        cardDisplay.className = `card-display ${isRed ? 'red' : 'black'}`;
-        document.getElementById('card-value').textContent = card.value;
-        document.getElementById('card-suit').textContent = card.suit;
-        document.getElementById('rule-box').textContent = RULES[card.value];
+        animateCard(card, isRed);
 
         // advance to next player
         state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.players.length;
@@ -160,11 +264,35 @@
         localStorage.removeItem(GAME_KEY);
         const state = initGame();
         render(state);
+
         document.getElementById('card-display').className = 'card-display';
         document.getElementById('card-value').textContent = '?';
         document.getElementById('card-suit').textContent = '🂠';
         document.getElementById('rule-box').textContent = 'Draw a card to begin!';
         document.getElementById('draw-btn').disabled = false;
+    }
+
+    /*Hold to go Back - Button Logic*/
+    const backButton = document.getElementById("back-button");
+    let holdTimer = null;
+
+    backButton.addEventListener("mousedown", startHold);
+    backButton.addEventListener("mouseup", cancelHold);
+    backButton.addEventListener("mouseleave", cancelHold);
+    backButton.addEventListener("touchstart", startHold);
+    backButton.addEventListener("touchend", cancelHold);
+
+    function startHold() {
+        backButton.classList.add("holding");
+
+        holdTimer = setTimeout(() => {
+            window.location.href = "{% url 'game_select' %}";
+        }, 2000);
+    }
+
+    function cancelHold() {
+        clearTimeout(holdTimer);
+        backButton.classList.remove("holding");
     }
 
     window.addEventListener('DOMContentLoaded', () => {
