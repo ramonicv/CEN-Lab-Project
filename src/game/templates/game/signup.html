@@ -78,8 +78,10 @@
         const players = getPlayers();
         const listContainer = document.getElementById('player-list');
         const continueBtn = document.getElementById('continue-btn');
+        const playerCount = document.getElementById('player-count');
+        const inputArea = document.getElementById('input-area');
 
-        document.getElementById('player-count').textContent = `${players.length} / ${MAX} players`;
+        playerCount.textContent = `${players.length} / ${MAX} players`;
 
         listContainer.innerHTML = players
             .map(p => `
@@ -91,7 +93,7 @@
             .join('');
 
         continueBtn.style.display = players.length >= 2 ? 'inline-block' : 'none';
-        document.getElementById('input-area').style.display = players.length >= MAX ? 'none' : 'flex';
+        inputArea.style.display = players.length >= MAX ? 'none' : 'flex';
     }
 
     function addPlayer() {
