@@ -62,10 +62,12 @@
         return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     }
 
+    // Save players as JSON string in localStorage to persist across page reloads
     function savePlayers(players) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(players));
     }
 
+    // helper to pick a random color from the vibrantColors array, ensuring it's not the same as the previous player's color
     function pickColor(previousColor) {
         let color;
         do {
@@ -81,6 +83,7 @@
         const playerCount = document.getElementById('player-count');
         const inputArea = document.getElementById('input-area');
 
+        // FOR REFERENCE: this line updates the html element with ID 'player-count' based on players array length 
         playerCount.textContent = `${players.length} / ${MAX} players`;
 
         listContainer.innerHTML = players
@@ -92,7 +95,10 @@
             `)
             .join('');
 
+        // FOR REFERENCE: this line shows continue button if there are at least 2 players
         continueBtn.style.display = players.length >= 2 ? 'inline-block' : 'none';
+
+        // FOR REFERENCE: this line hides input area if max players reached
         inputArea.style.display = players.length >= MAX ? 'none' : 'flex';
     }
 
@@ -101,18 +107,18 @@
         const name = input.value.trim();
         let players = getPlayers();
 
+        // Prevent duplicate player names (case-insensitive) and enforce MAX players limit
         if (!name || players.some(p => p.name.toLowerCase() === name.toLowerCase()) || players.length >= MAX) {
             return;
         }
 
-        
         const previousColor = players.length > 0 ? players[players.length - 1].color : null;
         const color = pickColor(previousColor);
 
         players.push({ name, color });
         savePlayers(players);
 
-        input.value = '';
+        input.value = ''; // reset input field
         render();
     }
 
@@ -125,6 +131,7 @@
         // TODO: redirect to game selection page
     }
 
+    // attach enter key to addPlayer(), so you dont have to click the html button manually every time
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('name-input').addEventListener('keydown', e => {
             if (e.key === 'Enter') addPlayer();
