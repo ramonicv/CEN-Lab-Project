@@ -1,7 +1,7 @@
 # CEN-Lab-Project
 Current version: Django website prototype - work-in-progress
 
-The app is currently **fully functional** but only features one game: Waterfall.
+The app is currently **fully functional** but only features two games: Waterfall, and Screw the Dealer
 
 NOTES: 
 - The logic and structure of the app is as follows: 
@@ -10,7 +10,7 @@ NOTES:
     - `src/media/` is *meant* to hold any images or data files (.png, .json, etc)
     - `src/templates/` holds base.html and any other global template files
     - `src/game/` holds the entire current app view, url, and app logic, as well as templates for this app. This may be expanded in the future by adding more app directories, and using game as just the initial page
-- The app is managed using Django's `manage.py` which is in the root directory. All changes/additions to the app should be managed via manage.py if appropriate (if unsure, refer to the Django documentation or ask an LLM).
+- The app is managed using Django's `manage.py` which is in the root directory. All changes/additions to the app should be managed via manage.py if appropriate (if unsure, refer to the Django documentation).
 
 ## Useful commands reference
 
