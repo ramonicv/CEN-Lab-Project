@@ -8,5 +8,6 @@ urlpatterns = [
     path('signup/', views.signup, name='signup'),
     path('game_select/', views.game_select, name='game_select'),
     path('waterfall/', views.waterfall, name='waterfall'),
+    path('screw_the_dealer/', views.screw_the_dealer, name='screw_the_dealer'),
 ]
 

@@ -13,3 +13,6 @@ def game_select(request):
 
 def waterfall(request):
     return render(request, 'game/waterfall.html')
+
+def screw_the_dealer(request):
+    return render(request, 'game/screw_the_dealer.html')
