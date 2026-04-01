@@ -11,3 +11,6 @@ def signup(request):
 
 def game_select(request):
     return render(request, 'game/game_select.html')
+
+def waterfall(request):
+    return render(request, 'game/waterfall.html')

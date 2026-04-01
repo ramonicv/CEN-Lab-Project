@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    .card-display {
+        width: 160px;
+        height: 220px;
+        border-radius: 16px;
+        background: white;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        font-weight: bold;
+        margin: 1rem auto;
+        border: 3px solid #ddd;
+        transition: transform 0.2s;
+    }
+    .card-display.red { color: #e74c3c; }
+    .card-display.black { color: #2c3e50; }
+    .card-suit { font-size: 2rem; }
+    .rule-box {
+        background: rgba(255,255,255,0.7);
+        border-radius: 12px;
+        padding: 1rem;
+        margin: 0.5rem auto;
+        max-width: 320px;
+        font-size: 1rem;
+        text-align: center;
+    }
+    .player-turn {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+</style>
+
+<div class="center-page text-center">
+    <h1 class="fw-bold">Waterfall</h1>
+
+    <p class="player-turn" id="player-turn">Loading...</p>
+
+    <div class="card-display" id="card-display" onclick="drawCard()" style="cursor: pointer;">
+        <span id="card-value">?</span>
+        <span class="card-suit" id="card-suit">🂠</span>
+    </div>
+
+    <div class="rule-box" id="rule-box">Draw a card to begin!</div>
+
+    <p id="cards-left" class="text-muted mt-2"></p>
+
+    <button class="btn btn-primary btn-lg mt-2" id="draw-btn" onclick="drawCard()">Tap to Draw a Card</button>
+
+    <div class="mt-3">
+        <button class="btn btn-outline-warning btn-sm me-2" onclick="restartGame()">Restart</button>
+        <a href="{% url 'game_select' %}" class="btn btn-outline-secondary btn-sm">Back to Game Select</a>
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = 'chupi_players';
+    const GAME_KEY = 'chupi_waterfall';
+
+    const RULES = {
+        'A':  'Waterfall! Everyone starts drinking. You can\'t stop until the person to your left stops.',
+        '2':  'You! Pick someone to drink.',
+        '3':  'Me! You drink.',
+        '4':  'Floor! Last person to touch the floor drinks.',
+        '5':  'Guys drink!',
+        '6':  'Girls drink!',
+        '7':  'Heaven! Last to point up drinks.',
+        '8':  'Mate! Pick a drinking buddy. you drink together for the rest of the game.',
+        '9':  'Rhyme! Say a word. Go around rhyming, first to fail drinks.',
+        '10': 'Categories! Pick a category. Go around naming things in it, first to fail drinks.',
+        'J':  'Make a Rule! Create a rule everyone must follow for the rest of the game.',
+        'Q':  'Questions! Ask someone a question, they must answer with a question. First to answer normally drinks.',
+        'K':  'King\'s Cup! Pour some of your drink into the center cup. Last king drawn drinks the cup.',
+    };
+
+    const SUITS = ['♠', '♣', '♥', '♦'];
+    const VALUES = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    const RED_SUITS = ['♥', '♦'];
+
+    function buildDeck() {
+        const deck = [];
+        for (const suit of SUITS) {
+            for (const value of VALUES) {
+                deck.push({ value, suit });
+            }
+        }
+        // shuffle
+        for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+        return deck;
+    }
+
+    function getState() {
+        const raw = localStorage.getItem(GAME_KEY);
+        if (raw) return JSON.parse(raw);
+        return null;
+    }
+
+    function saveState(state) {
+        localStorage.setItem(GAME_KEY, JSON.stringify(state));
+    }
+
+    function initGame() {
+        const players = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        if (players.length === 0) {
+            window.location.href = "{% url 'signup' %}";
+            return;
+        }
+        const state = {
+            deck: buildDeck(),
+            currentPlayerIndex: 0,
+            players: players,
+        };
+        saveState(state);
+        return state;
+    }
+
+    function render(state) {
+        const player = state.players[state.currentPlayerIndex];
+        document.getElementById('player-turn').innerHTML =
+            `<span class="badge" style="background-color:${player.color}; color:black; font-size:1rem; padding:6px 14px; border-radius:12px;">
+                ${player.name}'s turn
+            </span>`;
+        document.getElementById('cards-left').textContent = `${state.deck.length} cards remaining`;
+    }
+
+    function drawCard() {
+        let state = getState();
+        if (!state) state = initGame();
+        if (state.deck.length === 0) {
+            document.getElementById('rule-box').textContent = '🎉 Deck is empty! Game over.';
+            document.getElementById('draw-btn').disabled = true;
+            return;
+        }
+
+        const card = state.deck.pop();
+        const isRed = RED_SUITS.includes(card.suit);
+
+        const cardDisplay = document.getElementById('card-display');
+        cardDisplay.className = `card-display ${isRed ? 'red' : 'black'}`;
+        document.getElementById('card-value').textContent = card.value;
+        document.getElementById('card-suit').textContent = card.suit;
+        document.getElementById('rule-box').textContent = RULES[card.value];
+
+        // advance to next player
+        state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.players.length;
+        saveState(state);
+        render(state);
+    }
+
+    function restartGame() {
+        localStorage.removeItem(GAME_KEY);
+        const state = initGame();
+        render(state);
+        document.getElementById('card-display').className = 'card-display';
+        document.getElementById('card-value').textContent = '?';
+        document.getElementById('card-suit').textContent = '🂠';
+        document.getElementById('rule-box').textContent = 'Draw a card to begin!';
+        document.getElementById('draw-btn').disabled = false;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        let state = getState();
+        if (!state) state = initGame();
+        render(state);
+        document.getElementById('cards-left').textContent = `${state.deck.length} cards remaining`;
+    });
+</script>
+{% endblock %}
