@@ -1,30 +1,76 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="center-page">
-    <h1>Who's playing?</h1>
-    <p id="player-count">0 / 10 players</p>
+<style>
+.player-bubble {
+    display: inline-block;
+    padding: 8px 14px;
+    margin-bottom: 8px;
+    border-radius: 12px;
+    font-weight: 600;
+    color: black;
+    margin-right: 6px; /* spacing between bubbles */
+    white-space: nowrap; /* prevents weird wrapping */
+}
+</style>
+<div class="center-page text-center">
 
-    <div id="player-list"></div>
+    <h1 class="fw-bold mb-3">Who's playing?</h1>
+    <p id="player-count" class="text-muted">0 / 10 players</p>
 
-    <div id="input-area">
-        <input type="text" id="name-input" placeholder="Enter name" maxlength="20">
-        <button onclick="addPlayer()">Add Player</button>
+    <!-- Player list -->
+    <div id="player-list" class="mb-3"></div>
+
+    <!-- Input area -->
+    <div id="input-area" class="input-group mb-3 w-75 mx-auto">
+        <input type="text" id="name-input" class="form-control" placeholder="Enter name" maxlength="20">
+        <button class="btn btn-primary" onclick="addPlayer()">Add</button>
     </div>
 
-    <div style="Margin-top: 20px;">
-        <button type="button" onclick="clearPlayers()">Clear List</button>
-        <button type="submit" id="continue-btn" style="display:none; background-color: #4CAF50; color: white;" onclick="continueSignup()">
+    <!-- Action buttons -->
+    <div class="mt-3">
+        <button class="btn btn-outline-danger me-2" onclick="clearPlayers()">Clear List</button>
+
+        <button type="button" id="continue-btn"
+                class="btn btn-success"
+                style="display:none;"
+                onclick="continueSignup()">
             Continue
         </button>
     </div>
+
 </div>
 
 <script>
     const MAX = 10;
     const STORAGE_KEY = 'chupi_players';
-    
+
+    const vibrantColors = [
+        "#FF6B6B", // coral red
+        "#FF9F1C", // bright orange
+        "#FFD93D", // warm yellow
+        "#6BCB77", // fresh green
+        "#4D96FF", // bright blue
+        "#9D4EDD", // violet
+        "#FF5DA2", // hot pink
+        "#00C2A8", // aqua
+        "#F15BB5", // magenta
+        "#FEE440"  // neon yellow
+    ];
+
     function getPlayers() {
         return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    }
+
+    function savePlayers(players) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(players));
+    }
+
+    function pickColor(previousColor) {
+        let color;
+        do {
+            color = vibrantColors[Math.floor(Math.random() * vibrantColors.length)];
+        } while (color === previousColor);
+        return color;
     }
 
     function render() {
@@ -32,13 +78,19 @@
         const listContainer = document.getElementById('player-list');
         const continueBtn = document.getElementById('continue-btn');
 
-        // update 'player-count' html element based on players array length 
         document.getElementById('player-count').textContent = `${players.length} / ${MAX} players`;
-        listContainer.innerHTML = players.map(p => `<div class="player-entry">${p}</div>`).join('');
-        
-        // Show start button if there are at least 2 players, hide input area if max reached
+
+        listContainer.innerHTML = players
+            .map(p => `
+                <div class="player-bubble"
+                     style="background-color: ${p.color}; font-weight: 600;">
+                    ${p.name}
+                </div>
+            `)
+            .join('');
+
         continueBtn.style.display = players.length >= 2 ? 'inline-block' : 'none';
-        document.getElementById('input-area').style.display = players.length >= MAX ? 'none' : 'block';
+        document.getElementById('input-area').style.display = players.length >= MAX ? 'none' : 'flex';
     }
 
     function addPlayer() {
@@ -46,31 +98,38 @@
         const name = input.value.trim();
         let players = getPlayers();
 
-        // Prevent duplicates (case-insensitive) and enforce max
-        if (name && !players.some(p => p.toLowerCase() === name.toLowerCase()) && players.length < MAX) {
-            players.push(name);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(players));
-            input.value = '';
-            render();
+        if (!name || players.some(p => p.name.toLowerCase() === name.toLowerCase()) || players.length >= MAX) {
+            return;
         }
+
+        
+        const previousColor = players.length > 0 ? players[players.length - 1].color : null;
+        const color = pickColor(previousColor);
+
+        players.push({ name, color });
+        savePlayers(players);
+
+        input.value = '';
+        render();
     }
 
     function clearPlayers() {
         localStorage.removeItem(STORAGE_KEY);
         render();
     }
-    
-    function continueSignup() { 
-        // update this when the game page exists; theoretically, it should go to the screen where you can select what game to play
+
+    function continueSignup() {
+        // TODO: redirect to game selection page
     }
 
-    // attach enter key to addPlayer()
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('name-input').addEventListener('keydown', e => {
             if (e.key === 'Enter') addPlayer();
         });
         render();
     });
+
     window.onload = render;
 </script>
+
 {% endblock %}
