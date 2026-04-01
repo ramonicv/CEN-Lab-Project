@@ -44,7 +44,8 @@
     const MAX = 10;
     const STORAGE_KEY = 'chupi_players';
 
-    const vibrantColors = [
+    // color palette for player text boxes, ensuring good contrast with the background colors from base.html, and variety
+    const playerTextBackgrounds = [
         "#FF6B6B", // coral red
         "#FF9F1C", // bright orange
         "#FFD93D", // warm yellow
@@ -68,7 +69,7 @@
     function pickColor(previousColor) {
         let color;
         do {
-            color = vibrantColors[Math.floor(Math.random() * vibrantColors.length)];
+            color = playerTextBackgrounds[Math.floor(Math.random() * playerTextBackgrounds.length)];
         } while (color === previousColor);
         return color;
     }
