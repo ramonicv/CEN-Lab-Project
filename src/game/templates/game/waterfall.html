@@ -136,7 +136,7 @@
         let state = getState();
         if (!state) state = initGame();
         if (state.deck.length === 0) {
-            document.getElementById('rule-box').textContent = '🎉 Deck is empty! Game over.';
+            document.getElementById('rule-box').textContent = 'Deck is empty! Game over.';
             document.getElementById('draw-btn').disabled = true;
             return;
         }
