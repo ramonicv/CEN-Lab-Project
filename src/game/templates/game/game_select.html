@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<div class="center-page text-center">
+    <h1 class="fw-bold mb-1">Pick a Game!</h1>
+
+    <div id="player-preview" class="mb-4"></div>
+
+    <div class="d-grid gap-3 w-75 mx-auto">
+        <a href="{% url 'waterfall' %}" class="btn btn-lg btn-primary">Waterfall</a>
+        <!-- add more games here as they are built -->
+    </div>
+
+    <div class="mt-4">
+        <a href="{% url 'signup' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = 'chupi_players';
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const players = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        const preview = document.getElementById('player-preview');
+
+        if (players.length === 0) {
+            // no players found, send them back
+            window.location.href = "{% url 'signup' %}";
+            return;
+        }
+
+        preview.innerHTML = players.map(p =>
+            `<span class="badge me-1 mb-1" style="background-color:${p.color}; color:black; font-size:0.9rem; padding: 6px 12px; border-radius:12px;">
+                ${p.name}
+            </span>`
+        ).join('');
+    });
+</script>
+{% endblock %}

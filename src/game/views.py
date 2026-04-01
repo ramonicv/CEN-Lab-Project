@@ -9,3 +9,5 @@ def home(request):
 def signup(request):
     return render(request, 'game/signup.html')
 
+def game_select(request):
+    return render(request, 'game/game_select.html')
