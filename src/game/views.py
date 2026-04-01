@@ -13,3 +13,6 @@ def game_select(request):
 
 def waterfall(request):
     return render(request, 'game/waterfall.html')
+
+def fuck_the_dealer(request):
+    return render(request, 'game/fuck_the_dealer.html')

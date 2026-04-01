@@ -1,0 +1,552 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    .card-display {
+        width: 160px;
+        height: 220px;
+        border-radius: 16px;
+        background: white;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        font-weight: bold;
+        margin: 0.8rem auto;
+        border: 3px solid #ddd;
+        transition: transform 0.2s ease, opacity 0.25s ease;
+    }
+
+    .card-display.red { color: #e74c3c; }
+    .card-display.black { color: #2c3e50; }
+    .card-suit { font-size: 2rem; }
+
+    .info-box {
+        background: rgba(255,255,255,0.7);
+        border-radius: 12px;
+        padding: 0.8rem 1rem;
+        margin: 0.4rem auto;
+        max-width: 340px;
+        font-size: 1rem;
+        text-align: center;
+    }
+
+    .player-turn {
+        font-size: 1.1rem;
+        font-weight: bold;
+        margin-bottom: 0.3rem;
+    }
+
+    .guess-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 6px;
+        max-width: 320px;
+        margin: 0.5rem auto;
+    }
+
+    .guess-btn {
+        padding: 8px 4px;
+        border-radius: 10px;
+        border: 2px solid #aaa;
+        background: white;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .guess-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+
+    .guess-btn:active { transform: scale(0.95); }
+
+    .guess-btn.disabled {
+        opacity: 0.3;
+        pointer-events: none;
+    }
+
+    .guess-btn.hint-higher {
+        border-color: #27ae60;
+        background: #eafaf1;
+    }
+
+    .guess-btn.hint-lower {
+        border-color: #e74c3c;
+        background: #fdecea;
+    }
+
+    /* Swipe animation */
+    .swipe-out {
+        transform: translateX(-120px) rotate(-8deg);
+        opacity: 0;
+    }
+
+    .swipe-in {
+        transform: translateX(120px) rotate(8deg);
+        opacity: 0;
+        animation: swipeIn 0.25s forwards ease-out;
+    }
+
+    @keyframes swipeIn {
+        to {
+            transform: translateX(0) rotate(0);
+            opacity: 1;
+        }
+    }
+
+    /* Hold to go back */
+    #back-button {
+        position: relative;
+        overflow: hidden;
+    }
+
+    #back-button::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 3px;
+        width: 0%;
+        background: #f0ad4e;
+        transition: width 2s linear;
+    }
+
+    #back-button.holding::after {
+        width: 100%;
+    }
+
+    .game-btn {
+        font-weight: 600;
+        padding: 10px 14px;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+
+    #back-button {
+        background-color: rgba(255, 255, 255, 0.9);
+        border: 2px solid #6c757d;
+        color: #2c2c2c;
+    }
+
+    #restart-button {
+        background-color: #ffc107;
+        border: none;
+        color: #1f1f1f;
+    }
+
+    #back-button:hover,
+    #restart-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+    }
+
+    #back-button:active,
+    #restart-button:active {
+        transform: scale(0.96);
+    }
+
+    .result-msg {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-top: 0.3rem;
+        min-height: 1.6rem;
+    }
+
+    .result-msg.correct { color: #27ae60; }
+    .result-msg.wrong { color: #e74c3c; }
+
+    .streak-bar {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        margin: 0.3rem 0;
+    }
+
+    .streak-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 2px solid #aaa;
+        background: white;
+    }
+
+    .streak-dot.miss {
+        background: #e74c3c;
+        border-color: #c0392b;
+    }
+</style>
+
+<div class="center-page text-center" style="height: auto; min-height: 90vh; padding: 1.5rem 0;">
+    <h1 class="fw-bold mb-1">Fuck the Dealer</h1>
+
+    <!-- Dealer & Guesser info -->
+    <div class="player-turn">
+        <span id="dealer-badge" class="badge" style="font-size:0.9rem; padding:5px 12px; border-radius:12px;">Dealer</span>
+        <span class="mx-1">vs</span>
+        <span id="guesser-badge" class="badge" style="font-size:0.9rem; padding:5px 12px; border-radius:12px;">Guesser</span>
+    </div>
+
+    <!-- Streak dots (3 rounds without guessing = dealer passes) -->
+    <div class="streak-bar" id="streak-bar">
+        <div class="streak-dot" id="dot-0"></div>
+        <div class="streak-dot" id="dot-1"></div>
+        <div class="streak-dot" id="dot-2"></div>
+    </div>
+
+    <!-- Card display -->
+    <div class="card-display" id="card-display">
+        <span id="card-value">?</span>
+        <span class="card-suit" id="card-suit">&#x1F0A0;</span>
+    </div>
+
+    <!-- Prompt / Result -->
+    <div class="info-box" id="info-box">Guess the card value!</div>
+    <div class="result-msg" id="result-msg"></div>
+
+    <!-- Guess buttons -->
+    <div class="guess-grid" id="guess-grid"></div>
+
+    <!-- Next round button (hidden until round resolved) -->
+    <button class="btn btn-primary btn-lg mt-2" id="next-btn" style="display:none;" onclick="nextRound()">
+        Next Card
+    </button>
+
+    <p id="cards-left" class="text-muted mt-1 mb-1"></p>
+
+    <div class="mt-2">
+        <button id="back-button" class="game-btn">Hold to Go Back</button>
+        <button id="restart-button" class="game-btn ms-2" onclick="restartGame()">Restart</button>
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = 'chupi_players';
+    const GAME_KEY   = 'chupi_ftd';
+
+    const SUITS  = ['\u2660', '\u2663', '\u2665', '\u2666'];
+    const VALUES = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    const RED_SUITS = ['\u2665', '\u2666'];
+
+    // numeric mapping for distance calculation
+    const VAL_NUM = { 'A':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13 };
+
+    /* ---- Deck helpers ---- */
+    function buildDeck() {
+        const deck = [];
+        for (const suit of SUITS) {
+            for (const value of VALUES) {
+                deck.push({ value, suit });
+            }
+        }
+        // Fisher-Yates shuffle
+        for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+        return deck;
+    }
+
+    /* ---- State management ---- */
+    function getState() {
+        const raw = localStorage.getItem(GAME_KEY);
+        return raw ? JSON.parse(raw) : null;
+    }
+
+    function saveState(s) {
+        localStorage.setItem(GAME_KEY, JSON.stringify(s));
+    }
+
+    function initGame() {
+        const players = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        if (players.length < 2) {
+            window.location.href = "{% url 'signup' %}";
+            return null;
+        }
+        const state = {
+            deck: buildDeck(),
+            players: players,
+            dealerIndex: 0,
+            guesserIndex: 1,
+            streak: 0,          // consecutive rounds where guesser failed to guess
+            phase: 'first',     // 'first', 'second', 'resolved'
+            currentCard: null,
+            firstGuess: null,
+        };
+        saveState(state);
+        return state;
+    }
+
+    /* ---- Rendering ---- */
+    function renderBadges(state) {
+        const dealer  = state.players[state.dealerIndex];
+        const guesser = state.players[state.guesserIndex];
+
+        const dBadge = document.getElementById('dealer-badge');
+        const gBadge = document.getElementById('guesser-badge');
+
+        dBadge.textContent = dealer.name + ' (Dealer)';
+        dBadge.style.backgroundColor = dealer.color;
+        dBadge.style.color = 'black';
+
+        gBadge.textContent = guesser.name;
+        gBadge.style.backgroundColor = guesser.color;
+        gBadge.style.color = 'black';
+    }
+
+    function renderStreak(state) {
+        for (let i = 0; i < 3; i++) {
+            const dot = document.getElementById('dot-' + i);
+            dot.className = 'streak-dot' + (i < state.streak ? ' miss' : '');
+        }
+    }
+
+    function renderCardsLeft(state) {
+        document.getElementById('cards-left').textContent = state.deck.length + ' cards remaining';
+    }
+
+    function buildGuessButtons(state) {
+        const grid = document.getElementById('guess-grid');
+        grid.innerHTML = '';
+
+        VALUES.forEach(v => {
+            const btn = document.createElement('button');
+            btn.className = 'guess-btn';
+            btn.textContent = v;
+            btn.onclick = () => handleGuess(v);
+
+            // on second guess, grey out impossible values and color-code the hint
+            if (state.phase === 'second' && state.firstGuess) {
+                const cardNum = VAL_NUM[state.currentCard.value];
+                const firstNum = VAL_NUM[state.firstGuess];
+                const thisNum = VAL_NUM[v];
+
+                if (v === state.firstGuess) {
+                    btn.classList.add('disabled');
+                } else if (cardNum > firstNum && thisNum <= firstNum) {
+                    btn.classList.add('disabled');
+                } else if (cardNum < firstNum && thisNum >= firstNum) {
+                    btn.classList.add('disabled');
+                } else if (cardNum > firstNum) {
+                    btn.classList.add('hint-higher');
+                } else if (cardNum < firstNum) {
+                    btn.classList.add('hint-lower');
+                }
+            }
+
+            if (state.phase === 'resolved') {
+                btn.classList.add('disabled');
+            }
+
+            grid.appendChild(btn);
+        });
+    }
+
+    function drawNewCard(state) {
+        if (state.deck.length === 0) return null;
+        state.currentCard = state.deck.pop();
+        state.phase = 'first';
+        state.firstGuess = null;
+        saveState(state);
+        return state.currentCard;
+    }
+
+    /* ---- Card animation (same pattern as waterfall) ---- */
+    function animateCardReveal(card) {
+        const cardDisplay = document.getElementById('card-display');
+        const isRed = RED_SUITS.includes(card.suit);
+
+        cardDisplay.classList.add('swipe-out');
+
+        setTimeout(() => {
+            cardDisplay.className = 'card-display ' + (isRed ? 'red' : 'black');
+            document.getElementById('card-value').textContent = card.value;
+            document.getElementById('card-suit').textContent = card.suit;
+
+            cardDisplay.classList.add('swipe-in');
+            setTimeout(() => cardDisplay.classList.remove('swipe-in'), 250);
+        }, 150);
+    }
+
+    function resetCardDisplay() {
+        const cardDisplay = document.getElementById('card-display');
+        cardDisplay.classList.add('swipe-out');
+
+        setTimeout(() => {
+            cardDisplay.className = 'card-display';
+            document.getElementById('card-value').textContent = '?';
+            document.getElementById('card-suit').textContent = '\uD83C\uDCA0';
+
+            cardDisplay.classList.add('swipe-in');
+            setTimeout(() => cardDisplay.classList.remove('swipe-in'), 250);
+        }, 150);
+    }
+
+    /* ---- Core game logic ---- */
+    function handleGuess(guessValue) {
+        let state = getState();
+        if (!state || !state.currentCard) return;
+
+        const cardVal = state.currentCard.value;
+        const cardNum = VAL_NUM[cardVal];
+        const guessNum = VAL_NUM[guessValue];
+        const guesser = state.players[state.guesserIndex];
+        const dealer  = state.players[state.dealerIndex];
+
+        if (state.phase === 'first') {
+            if (guessValue === cardVal) {
+                // correct on first guess -> dealer drinks 5
+                animateCardReveal(state.currentCard);
+                document.getElementById('info-box').textContent = 'Correct! ' + dealer.name + ' drinks 5!';
+                document.getElementById('result-msg').className = 'result-msg correct';
+                document.getElementById('result-msg').textContent = 'Nailed it on the first try!';
+                state.phase = 'resolved';
+                state.streak = 0;
+                saveState(state);
+                showNextButton(state);
+            } else {
+                // wrong first guess -> give higher/lower hint
+                state.firstGuess = guessValue;
+                state.phase = 'second';
+                const hint = cardNum > guessNum ? 'Higher!' : 'Lower!';
+                document.getElementById('info-box').textContent = 'Wrong! The card is ' + hint + ' Guess again.';
+                document.getElementById('result-msg').className = 'result-msg wrong';
+                document.getElementById('result-msg').textContent = '';
+                saveState(state);
+                buildGuessButtons(state);
+            }
+        } else if (state.phase === 'second') {
+            if (guessValue === cardVal) {
+                // correct on second guess -> dealer drinks 3
+                animateCardReveal(state.currentCard);
+                document.getElementById('info-box').textContent = 'Correct! ' + dealer.name + ' drinks 3!';
+                document.getElementById('result-msg').className = 'result-msg correct';
+                document.getElementById('result-msg').textContent = 'Got it on the second try!';
+                state.phase = 'resolved';
+                state.streak = 0;
+                saveState(state);
+                showNextButton(state);
+            } else {
+                // wrong on both guesses -> guesser drinks the difference
+                const diff = Math.abs(cardNum - guessNum);
+                animateCardReveal(state.currentCard);
+                document.getElementById('info-box').textContent = 'Wrong! ' + guesser.name + ' drinks ' + diff + '!';
+                document.getElementById('result-msg').className = 'result-msg wrong';
+                document.getElementById('result-msg').textContent = 'The card was ' + cardVal + '. Drink up!';
+                state.phase = 'resolved';
+                state.streak++;
+                saveState(state);
+                showNextButton(state);
+            }
+        }
+    }
+
+    function showNextButton(state) {
+        buildGuessButtons(state); // disables all buttons
+        const nextBtn = document.getElementById('next-btn');
+
+        if (state.deck.length === 0) {
+            nextBtn.textContent = 'Game Over!';
+            nextBtn.disabled = true;
+        } else {
+            nextBtn.textContent = state.streak >= 3 ? 'Next Card (Dealer passes!)' : 'Next Card';
+            nextBtn.disabled = false;
+        }
+        nextBtn.style.display = 'inline-block';
+    }
+
+    function nextRound() {
+        let state = getState();
+        if (!state) return;
+
+        // if dealer survived 3 rounds without being guessed, pass dealer role
+        if (state.streak >= 3) {
+            state.dealerIndex = (state.dealerIndex + 1) % state.players.length;
+            state.streak = 0;
+            // make sure guesser isn't the same as dealer
+            if (state.guesserIndex === state.dealerIndex) {
+                state.guesserIndex = (state.dealerIndex + 1) % state.players.length;
+            }
+        }
+
+        // advance guesser to next player (skip dealer)
+        state.guesserIndex = (state.guesserIndex + 1) % state.players.length;
+        if (state.guesserIndex === state.dealerIndex) {
+            state.guesserIndex = (state.guesserIndex + 1) % state.players.length;
+        }
+
+        // draw a new card
+        drawNewCard(state);
+        saveState(state);
+
+        // reset UI
+        document.getElementById('info-box').textContent = 'Guess the card value!';
+        document.getElementById('result-msg').textContent = '';
+        document.getElementById('result-msg').className = 'result-msg';
+        document.getElementById('next-btn').style.display = 'none';
+
+        resetCardDisplay();
+        renderBadges(state);
+        renderStreak(state);
+        renderCardsLeft(state);
+        buildGuessButtons(state);
+    }
+
+    function restartGame() {
+        localStorage.removeItem(GAME_KEY);
+        const state = initGame();
+        if (!state) return;
+        startFreshRound(state);
+    }
+
+    function startFreshRound(state) {
+        drawNewCard(state);
+        saveState(state);
+
+        document.getElementById('info-box').textContent = 'Guess the card value!';
+        document.getElementById('result-msg').textContent = '';
+        document.getElementById('result-msg').className = 'result-msg';
+        document.getElementById('next-btn').style.display = 'none';
+
+        resetCardDisplay();
+        renderBadges(state);
+        renderStreak(state);
+        renderCardsLeft(state);
+        buildGuessButtons(state);
+    }
+
+    /* ---- Hold to go back (same as waterfall) ---- */
+    const backButton = document.getElementById("back-button");
+    let holdTimer = null;
+
+    backButton.addEventListener("mousedown", startHold);
+    backButton.addEventListener("mouseup", cancelHold);
+    backButton.addEventListener("mouseleave", cancelHold);
+    backButton.addEventListener("touchstart", startHold);
+    backButton.addEventListener("touchend", cancelHold);
+
+    function startHold() {
+        backButton.classList.add("holding");
+        holdTimer = setTimeout(() => {
+            window.location.href = "{% url 'game_select' %}";
+        }, 2000);
+    }
+
+    function cancelHold() {
+        clearTimeout(holdTimer);
+        backButton.classList.remove("holding");
+    }
+
+    /* ---- Init on page load ---- */
+    window.addEventListener('DOMContentLoaded', () => {
+        let state = initGame();
+        if (!state) return;
+        startFreshRound(state);
+    });
+</script>
+{% endblock %}
