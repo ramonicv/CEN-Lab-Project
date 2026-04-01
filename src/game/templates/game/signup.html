@@ -10,7 +10,25 @@
     color: black;
     margin-right: 6px; /* spacing between bubbles */
     white-space: nowrap; /* prevents weird wrapping */
+    
+    /*pop-in animation*/
+    animation: popIn 0.25s ease-out;
 }
+
+@keyframes popIn {
+    0% {
+        transform: scale(0.6);
+        opacity: 0;
+    }
+    70% {
+        transform: scale(1.08);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
 </style>
 <div class="center-page text-center">
 
@@ -87,19 +105,32 @@
         playerCount.textContent = `${players.length} / ${MAX} players`;
 
         listContainer.innerHTML = players
-            .map(p => `
-                <div class="player-bubble"
+        .map((p, index) => {
+            const isNewest = index === players.length - 1;
+
+            return `
+                <div class="player-bubble ${isNewest ? 'new-player' : ''}"
                      style="background-color: ${p.color}; font-weight: 600;">
                     ${p.name}
                 </div>
-            `)
-            .join('');
+            `;
+        })
+        .join('');
 
         // FOR REFERENCE: this line shows continue button if there are at least 2 players
         toSignupBtn.style.display = players.length >= 2 ? 'inline-block' : 'none';
 
         // FOR REFERENCE: this line hides input area if max players reached
         inputArea.style.display = players.length >= MAX ? 'none' : 'flex';
+
+        setTimeout(() => {
+            const newest = document.querySelector('.new-player');
+            if (newest) {
+                newest.classList.remove('new-player');
+                void newest.offsetWidth; // restart animation trick
+                newest.classList.add('new-player');
+            }
+        }, 10);
     }
 
     function addPlayer() {
