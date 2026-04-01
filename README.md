@@ -1,6 +1,8 @@
 # CEN-Lab-Project
 Current version: Django website prototype - work-in-progress
 
+The app is currently **fully functional** but only features one game: Waterfall.
+
 NOTES: 
 - The logic and structure of the app is as follows: 
     - `src/` holds app source code
@@ -35,8 +37,8 @@ NOTES:
 `git push origin branch-name`     Push  
 
 ## Members: 
-- Teena Singh
-- Chiara Savoretti
-- Ramon Ortega
-- Francisco De La Esp.
-- Samuel Marcano
+- Teena Singh  
+- Chiara Savoretti  
+- Ramon Ortega  
+- Francisco De La Esp.  
+- Samuel Marcano  
