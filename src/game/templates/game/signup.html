@@ -30,10 +30,10 @@
     <div class="mt-3">
         <button class="btn btn-outline-danger me-2" onclick="clearPlayers()">Clear List</button>
 
-        <button type="button" id="continue-btn"
+        <button type="button" id="toSignup-btn"
                 class="btn btn-success"
                 style="display:none;"
-                onclick="continueSignup()">
+                onclick="toSignup()">
             Continue
         </button>
     </div>
@@ -79,7 +79,7 @@
     function render() {
         const players = getPlayers();
         const listContainer = document.getElementById('player-list');
-        const continueBtn = document.getElementById('continue-btn');
+        const toSignupBtn = document.getElementById('toSignup-btn');
         const playerCount = document.getElementById('player-count');
         const inputArea = document.getElementById('input-area');
 
@@ -96,7 +96,7 @@
             .join('');
 
         // FOR REFERENCE: this line shows continue button if there are at least 2 players
-        continueBtn.style.display = players.length >= 2 ? 'inline-block' : 'none';
+        toSignupBtn.style.display = players.length >= 2 ? 'inline-block' : 'none';
 
         // FOR REFERENCE: this line hides input area if max players reached
         inputArea.style.display = players.length >= MAX ? 'none' : 'flex';
@@ -127,7 +127,7 @@
         render();
     }
 
-    function continueSignup() {
+    function toSignup() {
         // TODO: redirect to game selection page
     }
 
