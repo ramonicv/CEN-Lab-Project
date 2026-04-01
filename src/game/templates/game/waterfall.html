@@ -168,8 +168,7 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-        let state = getState(); // starts a new game every time the page is loaded. if we want the game to persist across refreshes, we can store it in localStorage.
-        if (!state) state = initGame();
+        const state = initGame(); // starts a new game every time the page is loaded. if we want the game to persist across refreshes, we can store it in localStorage.
         render(state);
         document.getElementById('cards-left').textContent = `${state.deck.length} cards remaining`;
     });
