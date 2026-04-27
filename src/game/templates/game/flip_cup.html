@@ -1,0 +1,419 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    .player-turn {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 0.4rem;
+    }
+
+    .info-box {
+        background: rgba(255,255,255,0.7);
+        border-radius: 12px;
+        padding: 0.8rem 1rem;
+        margin: 0.4rem auto;
+        max-width: 340px;
+        font-size: 1rem;
+        text-align: center;
+    }
+
+    .cup-container {
+        position: relative;
+        width: 120px;
+        height: 160px;
+        margin: 1rem auto;
+        cursor: pointer;
+    }
+
+    .cup {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(180deg, #e74c3c 0%, #c0392b 100%);
+        border-radius: 8px 8px 20px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        color: white;
+        transition: transform 0.15s ease;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+        user-select: none;
+    }
+
+    .cup.flipping {
+        animation: flipAttempt 0.3s ease-out;
+    }
+
+    .cup.flipped {
+        transform: rotate(180deg);
+        background: linear-gradient(0deg, #e74c3c 0%, #c0392b 100%);
+    }
+
+    @keyframes flipAttempt {
+        0%   { transform: rotate(0deg); }
+        50%  { transform: rotate(100deg); }
+        100% { transform: rotate(0deg); }
+    }
+
+    @keyframes flipSuccess {
+        0%   { transform: rotate(0deg); }
+        100% { transform: rotate(180deg); }
+    }
+
+    .cup.success-flip {
+        animation: flipSuccess 0.35s ease-out forwards;
+    }
+
+    .timer-display {
+        font-size: 2.2rem;
+        font-weight: 800;
+        margin: 0.3rem 0;
+        font-family: monospace;
+    }
+
+    .scoreboard {
+        background: rgba(255,255,255,0.7);
+        border-radius: 12px;
+        padding: 0.6rem 1rem;
+        margin: 0.5rem auto;
+        max-width: 340px;
+        text-align: left;
+    }
+
+    .score-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 0;
+        font-size: 0.95rem;
+    }
+
+    .score-row .badge {
+        font-size: 0.8rem;
+        padding: 4px 10px;
+        border-radius: 10px;
+    }
+
+    .result-msg {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-top: 0.3rem;
+        min-height: 1.6rem;
+    }
+
+    .result-msg.correct { color: #27ae60; }
+    .result-msg.wrong { color: #e74c3c; }
+
+    /* Hold to go back */
+    #back-button {
+        position: relative;
+        overflow: hidden;
+    }
+
+    #back-button::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 3px;
+        width: 0%;
+        background: #f0ad4e;
+        transition: width 2s linear;
+    }
+
+    #back-button.holding::after {
+        width: 100%;
+    }
+
+    .game-btn {
+        font-weight: 600;
+        padding: 10px 14px;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+
+    #back-button {
+        background-color: rgba(255, 255, 255, 0.9);
+        border: 2px solid #6c757d;
+        color: #2c2c2c;
+    }
+
+    #restart-button {
+        background-color: #ffc107;
+        border: none;
+        color: #1f1f1f;
+    }
+
+    #back-button:hover,
+    #restart-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+    }
+
+    #back-button:active,
+    #restart-button:active {
+        transform: scale(0.96);
+    }
+</style>
+
+<div class="center-page text-center" style="height: auto; min-height: 90vh; padding: 1.5rem 0;">
+    <h1 class="fw-bold mb-1">Flip Cup</h1>
+
+    <p class="player-turn" id="player-turn">Loading...</p>
+
+    <div class="info-box" id="info-box">Tap the cup to flip it! Fastest time wins.</div>
+
+    <div class="timer-display" id="timer-display">0.00s</div>
+
+    <div class="cup-container" id="cup-container">
+        <div class="cup" id="cup" onclick="tapCup()">&#x1F942;</div>
+    </div>
+
+    <div class="result-msg" id="result-msg"></div>
+
+    <button class="btn btn-success btn-lg mt-2" id="start-btn" onclick="startTurn()">Start!</button>
+    <button class="btn btn-primary btn-lg mt-2" id="next-btn" style="display:none;" onclick="nextPlayer()">Next Player</button>
+
+    <div class="scoreboard" id="scoreboard" style="display:none;">
+        <strong>Scoreboard</strong>
+        <div id="score-rows"></div>
+    </div>
+
+    <div class="mt-3">
+        <button id="back-button" class="game-btn">Hold to Go Back</button>
+        <button id="restart-button" class="game-btn ms-2" onclick="restartGame()">Restart</button>
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = 'chupi_players';
+    const GAME_KEY   = 'chupi_flip_cup';
+
+    let requiredTaps = 0;
+    let currentTaps = 0;
+    let timerInterval = null;
+    let startTime = 0;
+    let canTap = false;
+
+    function getState() {
+        const raw = localStorage.getItem(GAME_KEY);
+        return raw ? JSON.parse(raw) : null;
+    }
+
+    function saveState(s) {
+        localStorage.setItem(GAME_KEY, JSON.stringify(s));
+    }
+
+    function initGame() {
+        const players = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        if (players.length === 0) {
+            window.location.href = "{% url 'signup' %}";
+            return null;
+        }
+        const state = {
+            players: players,
+            currentPlayerIndex: 0,
+            scores: {},
+            roundsPlayed: 0,
+            totalRounds: players.length,
+            phase: 'waiting',
+        };
+        players.forEach(p => { state.scores[p.name] = null; });
+        saveState(state);
+        return state;
+    }
+
+    function renderPlayer(state) {
+        const player = state.players[state.currentPlayerIndex];
+        document.getElementById('player-turn').innerHTML =
+            '<span class="badge" style="background-color:' + player.color + '; color:black; font-size:1rem; padding:6px 14px; border-radius:12px;">' +
+            player.name + '\'s turn</span>';
+    }
+
+    function renderScoreboard(state) {
+        const sb = document.getElementById('scoreboard');
+        const rows = document.getElementById('score-rows');
+
+        const hasScores = Object.values(state.scores).some(v => v !== null);
+        if (!hasScores) { sb.style.display = 'none'; return; }
+
+        sb.style.display = 'block';
+        rows.innerHTML = '';
+
+        const sorted = state.players.slice().sort((a, b) => {
+            const ta = state.scores[a.name];
+            const tb = state.scores[b.name];
+            if (ta === null && tb === null) return 0;
+            if (ta === null) return 1;
+            if (tb === null) return -1;
+            return ta - tb;
+        });
+
+        sorted.forEach((p, i) => {
+            const time = state.scores[p.name];
+            if (time === null) return;
+            const div = document.createElement('div');
+            div.className = 'score-row';
+            div.innerHTML =
+                '<span><span class="badge" style="background-color:' + p.color + '; color:black;">' +
+                p.name + '</span></span>' +
+                '<span>' + time.toFixed(2) + 's</span>';
+            rows.appendChild(div);
+        });
+    }
+
+    function resetCup() {
+        const cup = document.getElementById('cup');
+        cup.className = 'cup';
+        cup.innerHTML = '&#x1F942;';
+        currentTaps = 0;
+        canTap = false;
+        document.getElementById('timer-display').textContent = '0.00s';
+    }
+
+    function startTurn() {
+        let state = getState();
+        if (!state) return;
+
+        resetCup();
+        requiredTaps = Math.floor(Math.random() * 4) + 3;
+        currentTaps = 0;
+        canTap = true;
+
+        document.getElementById('start-btn').style.display = 'none';
+        document.getElementById('next-btn').style.display = 'none';
+        document.getElementById('result-msg').textContent = '';
+        document.getElementById('result-msg').className = 'result-msg';
+        document.getElementById('info-box').textContent = 'Tap the cup to flip it!';
+
+        startTime = performance.now();
+        timerInterval = setInterval(() => {
+            const elapsed = (performance.now() - startTime) / 1000;
+            document.getElementById('timer-display').textContent = elapsed.toFixed(2) + 's';
+        }, 50);
+
+        state.phase = 'tapping';
+        saveState(state);
+    }
+
+    function tapCup() {
+        if (!canTap) return;
+
+        currentTaps++;
+        const cup = document.getElementById('cup');
+
+        if (currentTaps < requiredTaps) {
+            cup.classList.remove('flipping');
+            void cup.offsetWidth;
+            cup.classList.add('flipping');
+        } else {
+            canTap = false;
+            clearInterval(timerInterval);
+
+            const elapsed = (performance.now() - startTime) / 1000;
+            document.getElementById('timer-display').textContent = elapsed.toFixed(2) + 's';
+
+            cup.classList.remove('flipping');
+            cup.className = 'cup success-flip';
+
+            let state = getState();
+            const player = state.players[state.currentPlayerIndex];
+            state.scores[player.name] = elapsed;
+            state.roundsPlayed++;
+            state.phase = 'done';
+            saveState(state);
+
+            document.getElementById('info-box').textContent = player.name + ' flipped in ' + elapsed.toFixed(2) + 's!';
+
+            if (state.roundsPlayed >= state.totalRounds) {
+                let slowest = null;
+                let slowestTime = 0;
+                state.players.forEach(p => {
+                    if (state.scores[p.name] !== null && state.scores[p.name] > slowestTime) {
+                        slowestTime = state.scores[p.name];
+                        slowest = p;
+                    }
+                });
+
+                document.getElementById('result-msg').className = 'result-msg wrong';
+                document.getElementById('result-msg').textContent = slowest.name + ' was slowest! Drink up!';
+                document.getElementById('next-btn').textContent = 'Play Again';
+                document.getElementById('next-btn').onclick = restartGame;
+            } else {
+                document.getElementById('result-msg').className = 'result-msg correct';
+                document.getElementById('result-msg').textContent = 'Flipped!';
+                document.getElementById('next-btn').textContent = 'Next Player';
+                document.getElementById('next-btn').onclick = nextPlayer;
+            }
+
+            document.getElementById('next-btn').style.display = 'inline-block';
+            renderScoreboard(state);
+        }
+    }
+
+    function nextPlayer() {
+        let state = getState();
+        if (!state) return;
+
+        state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.players.length;
+        state.phase = 'waiting';
+        saveState(state);
+
+        resetCup();
+        renderPlayer(state);
+
+        document.getElementById('info-box').textContent = 'Get ready to flip!';
+        document.getElementById('result-msg').textContent = '';
+        document.getElementById('result-msg').className = 'result-msg';
+        document.getElementById('start-btn').style.display = 'inline-block';
+        document.getElementById('next-btn').style.display = 'none';
+    }
+
+    function restartGame() {
+        clearInterval(timerInterval);
+        localStorage.removeItem(GAME_KEY);
+        const state = initGame();
+        if (!state) return;
+
+        resetCup();
+        renderPlayer(state);
+        renderScoreboard(state);
+
+        document.getElementById('info-box').textContent = 'Tap the cup to flip it! Fastest time wins.';
+        document.getElementById('result-msg').textContent = '';
+        document.getElementById('result-msg').className = 'result-msg';
+        document.getElementById('start-btn').style.display = 'inline-block';
+        document.getElementById('next-btn').style.display = 'none';
+    }
+
+    const backButton = document.getElementById("back-button");
+    let holdTimer = null;
+
+    backButton.addEventListener("mousedown", startHold);
+    backButton.addEventListener("mouseup", cancelHold);
+    backButton.addEventListener("mouseleave", cancelHold);
+    backButton.addEventListener("touchstart", startHold);
+    backButton.addEventListener("touchend", cancelHold);
+
+    function startHold() {
+        backButton.classList.add("holding");
+        holdTimer = setTimeout(() => {
+            window.location.href = "{% url 'game_select' %}";
+        }, 2000);
+    }
+
+    function cancelHold() {
+        clearTimeout(holdTimer);
+        backButton.classList.remove("holding");
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const state = initGame();
+        if (!state) return;
+        renderPlayer(state);
+        renderScoreboard(state);
+    });
+</script>
+{% endblock %}

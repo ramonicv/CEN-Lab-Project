@@ -16,3 +16,12 @@ def waterfall(request):
 
 def fuck_the_dealer(request):
     return render(request, 'game/fuck_the_dealer.html')
+
+def kings_cup(request):
+    return render(request, 'game/kings_cup.html')
+
+def ride_the_bus(request):
+    return render(request, 'game/ride_the_bus.html')
+
+def flip_cup(request):
+    return render(request, 'game/flip_cup.html')

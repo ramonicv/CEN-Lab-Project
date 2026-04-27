@@ -1,0 +1,338 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    .card-display {
+        width: 160px;
+        height: 220px;
+        border-radius: 16px;
+        background: white;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        font-weight: bold;
+        margin: 0.8rem auto;
+        border: 3px solid #ddd;
+        transition: transform 0.2s ease, opacity 0.25s ease;
+    }
+
+    .card-display.red { color: #e74c3c; }
+    .card-display.black { color: #2c3e50; }
+    .card-suit { font-size: 2rem; }
+
+    .rule-box {
+        background: rgba(255,255,255,0.7);
+        border-radius: 12px;
+        padding: 1rem;
+        margin: 0.5rem auto;
+        max-width: 340px;
+        font-size: 1rem;
+        text-align: center;
+    }
+
+    .rule-title {
+        font-weight: 800;
+        font-size: 1.15rem;
+        margin-bottom: 4px;
+    }
+
+    .player-turn {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .kings-tracker {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin: 0.4rem 0;
+    }
+
+    .king-icon {
+        font-size: 1.4rem;
+        opacity: 0.25;
+        transition: opacity 0.3s ease;
+    }
+
+    .king-icon.drawn {
+        opacity: 1;
+    }
+
+    /* Swipe animation */
+    .swipe-out {
+        transform: translateX(-120px) rotate(-8deg);
+        opacity: 0;
+    }
+
+    .swipe-in {
+        transform: translateX(120px) rotate(8deg);
+        opacity: 0;
+        animation: swipeIn 0.25s forwards ease-out;
+    }
+
+    @keyframes swipeIn {
+        to {
+            transform: translateX(0) rotate(0);
+            opacity: 1;
+        }
+    }
+
+    /* Hold to go back */
+    #back-button {
+        position: relative;
+        overflow: hidden;
+    }
+
+    #back-button::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 3px;
+        width: 0%;
+        background: #f0ad4e;
+        transition: width 2s linear;
+    }
+
+    #back-button.holding::after {
+        width: 100%;
+    }
+
+    .game-btn {
+        font-weight: 600;
+        padding: 10px 14px;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+
+    #back-button {
+        background-color: rgba(255, 255, 255, 0.9);
+        border: 2px solid #6c757d;
+        color: #2c2c2c;
+    }
+
+    #restart-button {
+        background-color: #ffc107;
+        border: none;
+        color: #1f1f1f;
+    }
+
+    #back-button:hover,
+    #restart-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+    }
+
+    #back-button:active,
+    #restart-button:active {
+        transform: scale(0.96);
+    }
+</style>
+
+<div class="center-page text-center" style="height: auto; min-height: 90vh; padding: 1.5rem 0;">
+    <h1 class="fw-bold mb-1">Kings Cup</h1>
+
+    <p class="player-turn" id="player-turn">Loading...</p>
+
+    <!-- Kings tracker -->
+    <div class="kings-tracker" id="kings-tracker">
+        <span class="king-icon" id="king-0">&#x1F451;</span>
+        <span class="king-icon" id="king-1">&#x1F451;</span>
+        <span class="king-icon" id="king-2">&#x1F451;</span>
+        <span class="king-icon" id="king-3">&#x1F451;</span>
+    </div>
+
+    <div class="card-display" id="card-display" onclick="drawCard()" style="cursor: pointer;">
+        <span id="card-value">?</span>
+        <span class="card-suit" id="card-suit">&#x1F0A0;</span>
+    </div>
+
+    <div class="rule-box" id="rule-box">
+        <div class="rule-title" id="rule-title">Tap to draw!</div>
+        <div id="rule-desc">Draw a card to begin the game.</div>
+    </div>
+
+    <p id="cards-left" class="text-muted mt-2"></p>
+
+    <button class="btn btn-primary btn-lg mt-2" id="draw-btn" onclick="drawCard()">Tap to Draw a Card</button>
+
+    <div class="mt-3">
+        <button id="back-button" class="game-btn">Hold to Go Back</button>
+        <button id="restart-button" class="game-btn ms-2" onclick="restartGame()">Restart</button>
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = 'chupi_players';
+    const GAME_KEY = 'chupi_kings_cup';
+
+    const RULES = {
+        'A':  { title: 'Waterfall!', desc: 'Everyone starts drinking. You can\'t stop until the person to your left stops.' },
+        '2':  { title: 'You!', desc: 'Pick someone to drink.' },
+        '3':  { title: 'Me!', desc: 'You drink.' },
+        '4':  { title: 'Floor!', desc: 'Last person to touch the floor drinks.' },
+        '5':  { title: 'Guys!', desc: 'All guys drink.' },
+        '6':  { title: 'Chicks!', desc: 'All girls drink.' },
+        '7':  { title: 'Heaven!', desc: 'Last person to point up drinks.' },
+        '8':  { title: 'Mate!', desc: 'Pick a drinking buddy. When one drinks, both drink.' },
+        '9':  { title: 'Rhyme!', desc: 'Say a word. Go around rhyming it. First to fail drinks.' },
+        '10': { title: 'Categories!', desc: 'Pick a category. Go around naming things in it. First to fail drinks.' },
+        'J':  { title: 'Make a Rule!', desc: 'Create a rule everyone must follow. Whoever breaks it drinks.' },
+        'Q':  { title: 'Question Master!', desc: 'You\'re the Question Master. Anyone who answers your questions drinks — until the next Queen is drawn.' },
+        'K':  { title: 'King\'s Cup!', desc: '' },
+    };
+
+    const SUITS  = ['\u2660', '\u2663', '\u2665', '\u2666'];
+    const VALUES = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    const RED_SUITS = ['\u2665', '\u2666'];
+
+    function buildDeck() {
+        const deck = [];
+        for (const suit of SUITS) {
+            for (const value of VALUES) {
+                deck.push({ value, suit });
+            }
+        }
+        for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+        return deck;
+    }
+
+    function getState() {
+        const raw = localStorage.getItem(GAME_KEY);
+        return raw ? JSON.parse(raw) : null;
+    }
+
+    function saveState(state) {
+        localStorage.setItem(GAME_KEY, JSON.stringify(state));
+    }
+
+    function initGame() {
+        const players = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        if (players.length === 0) {
+            window.location.href = "{% url 'signup' %}";
+            return null;
+        }
+        const state = {
+            deck: buildDeck(),
+            currentPlayerIndex: 0,
+            players: players,
+            kingsDrawn: 0,
+        };
+        saveState(state);
+        return state;
+    }
+
+    function render(state) {
+        const player = state.players[state.currentPlayerIndex];
+        document.getElementById('player-turn').innerHTML =
+            '<span class="badge" style="background-color:' + player.color + '; color:black; font-size:1rem; padding:6px 14px; border-radius:12px;">' +
+            player.name + '\'s turn</span>';
+        document.getElementById('cards-left').textContent = state.deck.length + ' cards remaining';
+
+        for (let i = 0; i < 4; i++) {
+            document.getElementById('king-' + i).className = 'king-icon' + (i < state.kingsDrawn ? ' drawn' : '');
+        }
+    }
+
+    function animateCard(card, isRed) {
+        const cardDisplay = document.getElementById('card-display');
+        cardDisplay.classList.add('swipe-out');
+
+        setTimeout(() => {
+            cardDisplay.className = 'card-display ' + (isRed ? 'red' : 'black');
+            document.getElementById('card-value').textContent = card.value;
+            document.getElementById('card-suit').textContent = card.suit;
+            cardDisplay.classList.remove('swipe-out');
+            cardDisplay.classList.add('swipe-in');
+            setTimeout(() => cardDisplay.classList.remove('swipe-in'), 250);
+        }, 150);
+    }
+
+    function drawCard() {
+        let state = getState();
+        if (!state) state = initGame();
+        if (!state) return;
+
+        if (state.deck.length === 0) {
+            document.getElementById('rule-title').textContent = 'Game Over!';
+            document.getElementById('rule-desc').textContent = 'The deck is empty!';
+            document.getElementById('draw-btn').disabled = true;
+            return;
+        }
+
+        const card = state.deck.pop();
+        const isRed = RED_SUITS.includes(card.suit);
+        animateCard(card, isRed);
+
+        const rule = RULES[card.value];
+        document.getElementById('rule-title').textContent = rule.title;
+
+        if (card.value === 'K') {
+            state.kingsDrawn++;
+            if (state.kingsDrawn < 4) {
+                document.getElementById('rule-desc').textContent =
+                    'Pour some of your drink into the King\'s Cup. (' + state.kingsDrawn + '/4 Kings drawn)';
+            } else {
+                document.getElementById('rule-desc').textContent =
+                    'The 4th King! You drink the entire King\'s Cup! Game over!';
+                document.getElementById('draw-btn').disabled = true;
+            }
+        } else {
+            document.getElementById('rule-desc').textContent = rule.desc;
+        }
+
+        state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.players.length;
+        saveState(state);
+        render(state);
+    }
+
+    function restartGame() {
+        localStorage.removeItem(GAME_KEY);
+        const state = initGame();
+        if (!state) return;
+        render(state);
+
+        document.getElementById('card-display').className = 'card-display';
+        document.getElementById('card-value').textContent = '?';
+        document.getElementById('card-suit').textContent = '\uD83C\uDCA0';
+        document.getElementById('rule-title').textContent = 'Tap to draw!';
+        document.getElementById('rule-desc').textContent = 'Draw a card to begin the game.';
+        document.getElementById('draw-btn').disabled = false;
+    }
+
+    const backButton = document.getElementById("back-button");
+    let holdTimer = null;
+
+    backButton.addEventListener("mousedown", startHold);
+    backButton.addEventListener("mouseup", cancelHold);
+    backButton.addEventListener("mouseleave", cancelHold);
+    backButton.addEventListener("touchstart", startHold);
+    backButton.addEventListener("touchend", cancelHold);
+
+    function startHold() {
+        backButton.classList.add("holding");
+        holdTimer = setTimeout(() => {
+            window.location.href = "{% url 'game_select' %}";
+        }, 2000);
+    }
+
+    function cancelHold() {
+        clearTimeout(holdTimer);
+        backButton.classList.remove("holding");
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const state = initGame();
+        if (!state) return;
+        render(state);
+    });
+</script>
+{% endblock %}
