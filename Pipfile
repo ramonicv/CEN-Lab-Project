@@ -12,6 +12,8 @@ pluggy = "==1.6.0"
 pygments = "==2.19.2"
 pytest = "==9.0.2"
 sqlparse = "==0.5.5"
+whitenoise = "*"
+gunicorn = "*"
 
 [dev-packages]
 
