@@ -1,7 +1,9 @@
 # CEN-Lab-Project
-Current version: Django website prototype - work-in-progress
+Current version: 1.01
 
-The app is currently **fully functional** but only features two games: Waterfall, and Screw the Dealer
+### V1.01 Changelog:
+- 1.01 implements Dockerfile and functionality for Railway CI/CD pipeline
+    - Before this, the app only worked locally.
 
 NOTES: 
 - The logic and structure of the app is as follows: 
