@@ -1,6 +1,6 @@
 services:
   django:
-    build: .
+    build: . # tells Docker to build the image from the Dockerfile in the current directory
     ports:
       - "8000:8000"
     environment:
