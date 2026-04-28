@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+.player-bubble {
+    display: inline-block;
+    padding: 8px 14px;
+    margin-bottom: 8px;
+    border-radius: 12px;
+    font-weight: 600;
+    color: black;
+    margin-right: 6px; /* spacing between bubbles */
+    white-space: nowrap; /* prevents weird wrapping */
+    
+    /*pop-in animation*/
+    animation: popIn 0.25s ease-out;
+}
+
+@keyframes popIn {
+    0% {
+        transform: scale(0.6);
+        opacity: 0;
+    }
+    70% {
+        transform: scale(1.08);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+</style>
+<div class="center-page text-center">
+
+    <h1 class="fw-bold mb-3">Who's playing?</h1>
+    <p id="player-count" class="text-muted">0 / 10 players</p>
+
+    <!-- Player list -->
+    <div id="player-list" class="mb-3"></div>
+
+    <!-- Input area -->
+    <div id="input-area" class="input-group mb-3 w-75 mx-auto">
+        <input type="text" id="name-input" class="form-control" placeholder="Enter name" maxlength="20">
+        <button class="btn btn-primary" onclick="addPlayer()">Add</button>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="mt-3">
+        <button class="btn btn-outline-danger me-2" onclick="clearPlayers()">Clear List</button>
+
+        <button type="button" id="toSignup-btn"
+                class="btn btn-success"
+                style="display:none;"
+                onclick="toSignup()">
+            Continue
+        </button>
+    </div>
+
+</div>
+
+<script>
+    const MAX = 10;
+    const STORAGE_KEY = 'chupi_players';
+
+    // color palette for player text boxes, ensuring good contrast with the background colors from base.html, and variety
+    const playerTextBackgrounds = [
+        "#FF6B6B", // coral red
+        "#FF9F1C", // bright orange
+        "#FFD93D", // warm yellow
+        "#6BCB77", // fresh green
+        "#4D96FF", // bright blue
+        "#9D4EDD", // violet
+        "#FF5DA2", // hot pink
+        "#00C2A8", // aqua
+        "#F15BB5", // magenta
+        "#FEE440"  // neon yellow
+    ];
+
+    function getPlayers() {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    }
+
+    // Save players as JSON string in localStorage to persist across page reloads
+    function savePlayers(players) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(players));
+    }
+
+    // helper to pick a random color from the vibrantColors array, ensuring it's not the same as the previous player's color
+    function pickColor(previousColor) {
+        let color;
+        do {
+            color = playerTextBackgrounds[Math.floor(Math.random() * playerTextBackgrounds.length)];
+        } while (color === previousColor);
+        return color;
+    }
+
+    function render() {
+        const players = getPlayers();
+        const listContainer = document.getElementById('player-list');
+        const toSignupBtn = document.getElementById('toSignup-btn');
+        const playerCount = document.getElementById('player-count');
+        const inputArea = document.getElementById('input-area');
+
+        // FOR REFERENCE: this line updates the html element with ID 'player-count' based on players array length 
+        playerCount.textContent = `${players.length} / ${MAX} players`;
+
+        listContainer.innerHTML = players
+        .map((p, index) => {
+            const isNewest = index === players.length - 1;
+
+            return `
+                <div class="player-bubble ${isNewest ? 'new-player' : ''}"
+                     style="background-color: ${p.color}; font-weight: 600;">
+                    ${p.name}
+                </div>
+            `;
+        })
+        .join('');
+
+        // FOR REFERENCE: this line shows continue button if there are at least 2 players
+        toSignupBtn.style.display = players.length >= 2 ? 'inline-block' : 'none';
+
+        // FOR REFERENCE: this line hides input area if max players reached
+        inputArea.style.display = players.length >= MAX ? 'none' : 'flex';
+
+        setTimeout(() => {
+            const newest = document.querySelector('.new-player');
+            if (newest) {
+                newest.classList.remove('new-player');
+                void newest.offsetWidth; // restart animation trick
+                newest.classList.add('new-player');
+            }
+        }, 10);
+    }
+
+    function addPlayer() {
+        const input = document.getElementById('name-input');
+        const name = input.value.trim();
+        let players = getPlayers();
+
+        // Prevent duplicate player names (case-insensitive) and enforce MAX players limit
+        if (!name || players.some(p => p.name.toLowerCase() === name.toLowerCase()) || players.length >= MAX) {
+            return;
+        }
+
+        const previousColor = players.length > 0 ? players[players.length - 1].color : null;
+        const color = pickColor(previousColor);
+
+        players.push({ name, color });
+        savePlayers(players);
+
+        input.value = ''; // reset input field
+        render();
+    }
+
+    function clearPlayers() {
+        localStorage.removeItem(STORAGE_KEY);
+        render();
+    }
+
+    function toSignup() {
+        window.location.href = "{% url 'game_select' %}";
+    }
+
+    // attach enter key to addPlayer(), so you dont have to click the html button manually every time
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('name-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') addPlayer();
+        });
+        render();
+    });
+
+    window.onload = render;
+</script>
+
+{% endblock %}

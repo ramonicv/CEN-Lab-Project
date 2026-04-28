@@ -1,0 +1,23 @@
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+.pytest_cache/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Database
+db.sqlite3
+
+# Docker
+.dockerignore
