@@ -164,17 +164,11 @@
 
     <div class="result-flash" id="result-flash"></div>
 
-    <!-- Truth / Drink -->
-    <div class="action-row mt-2">
-        <button class="game-btn" id="truth-btn" onclick="handleTruth()">Truth</button>
-        <button class="game-btn" id="drink-btn" onclick="handleDrink()">Drink</button>
-    </div>
-
     <!-- Skip / Restart / Back -->
     <div class="action-row mt-2">
+        <button class="game-btn" id="back-button">Hold to Go Back</button>
         <button class="game-btn" id="skip-btn" onclick="nextQuestion()">Skip</button>
         <button class="game-btn" id="restart-btn" onclick="restartGame()">Restart</button>
-        <button class="game-btn" id="back-button">Hold to Go Back</button>
     </div>
 </div>
 
@@ -470,16 +464,6 @@ function nextQuestion(autoAdvance = false) {
     animateQuestion(question);
     renderPlayer(state);
     updateQuestionsLeft(state);
-}
-
-function handleTruth() {
-    showFlash('They answered!', 'result-truth');
-    nextQuestion(false);
-}
-
-function handleDrink() {
-    showFlash('Drink up!', 'result-drink');
-    nextQuestion(false);
 }
 
 function restartGame() {
