@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        min-height: 100%;
+    }
+
+    .center-page {
+        max-width: none !important;
+        width: 100% !important;
+        padding: 0 !important;
+    }
+
+    .fsu-page {
+        min-height: 100vh;
+        width: 100%;
+        padding: 2rem;
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+
+        background:
+            radial-gradient(circle at top, rgba(206,184,136,0.4), transparent 40%),
+            linear-gradient(135deg, #2b0f18 0%, #782F40 50%, #CEB888 100%);
+    }
+
+    .fsu-title {
+        color: #CEB888;
+        text-shadow: 2px 2px 0 #2b0f18;
+    }
+
+    .subtitle {
+        color: #fff3d6;
+    }
+
+    .trivia-card {
+        background: rgba(255, 248, 229, 0.95);
+        border: 3px solid #CEB888;
+        border-radius: 24px;
+        padding: 1.5rem;
+        width: 100%;
+        max-width: 700px;
+        margin: 1rem auto;
+        box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    }
+
+    .player-turn {
+        margin-bottom: 1rem;
+        font-weight: bold;
+    }
+
+    .question-box {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #4b1726;
+        margin-bottom: 1rem;
+    }
+
+    button,
+    .option-btn,
+    .game-btn {
+        transition:
+            transform 0.18s ease,
+            box-shadow 0.18s ease,
+            background-color 0.2s ease,
+            color 0.2s ease,
+            border-color 0.2s ease,
+            opacity 0.2s ease;
+        will-change: transform;
+    }
+
+    .option-btn {
+        display: block;
+        width: 100%;
+        margin: 0.7rem auto;
+        padding: 13px;
+        border-radius: 14px;
+        border: 2px solid #CEB888;
+        background: #782F40;
+        color: white;
+        font-weight: 700;
+    }
+
+    .option-btn:hover {
+        background: #5d2434;
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 0 0 2px #CEB888, 0 8px 18px rgba(0,0,0,0.3);
+    }
+
+    .option-btn:active {
+        transform: scale(0.95);
+    }
+
+    button:hover,
+    .game-btn:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 8px 18px rgba(0,0,0,0.3);
+    }
+
+    button:active,
+    .game-btn:active {
+        transform: scale(0.95);
+        box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    }
+
+    button:disabled {
+        opacity: 0.6;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .result-text {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-top: 1rem;
+    }
+
+    .drink-box {
+        display: none;
+        background: linear-gradient(135deg, #CEB888, #f3dda0);
+        color: #2b0f18;
+        border-radius: 14px;
+        padding: 1rem;
+        margin-top: 1rem;
+        font-weight: 800;
+    }
+
+    #next-button,
+    #restart-button {
+        background-color: #CEB888;
+        border: 2px solid #fff0c2;
+        color: #2b0f18;
+    }
+
+    #next-button:hover,
+    #restart-button:hover {
+        background-color: #f3dda0;
+        box-shadow: 0 0 12px rgba(206,184,136,0.8), 0 8px 18px rgba(0,0,0,0.3);
+    }
+
+    #back-button {
+        position: relative;
+        overflow: hidden;
+        background-color: white;
+        border: 2px solid #782F40;
+        color: #782F40;
+    }
+
+    #back-button:hover {
+        background-color: #fff5d9;
+        color: #5d2434;
+        border-color: #CEB888;
+    }
+
+    #back-button::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 3px;
+        width: 0%;
+        background: #CEB888;
+        transition: width 2s linear;
+    }
+
+    #back-button.holding::after {
+        width: 100%;
+    }
+</style>
+
+<div class="fsu-page center-page text-center">
+    <h1 class="fw-bold fsu-title">FSU Trivia 🍢🍻</h1>
+    <p class="subtitle">Answer correctly… or drink.</p>
+
+    <p class="player-turn" id="player-turn"></p>
+
+    <div class="trivia-card">
+        <div class="question-box" id="question-box"></div>
+        <div id="options-box"></div>
+        <p class="result-text" id="result-text"></p>
+        <div class="drink-box" id="drink-box"></div>
+    </div>
+
+    <button id="next-button" class="game-btn" onclick="nextQuestion()">Next</button>
+
+    <div class="mt-3">
+        <button id="back-button" class="game-btn">Hold to Go Back</button>
+        <button id="restart-button" class="game-btn ms-2" onclick="restartGame()">Restart</button>
+    </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'chupi_players';
+const GAME_KEY = 'chupi_fsu_trivia';
+
+const QUESTIONS = [
+    { question: "Which bar is known as Bull’s?", options: ["Bullwinkle’s","Recess","MadSo","Township"], answer: "Bullwinkle’s", drink: "Anyone who has lost their group at Bull’s drinks." },
+    { question: "Most dangerous FSU phrase?", options: ["Let’s pregame","I’ll stay in","I have class","One drink only"], answer: "Let’s pregame", drink: "Everyone who has been lied to by a pregame drinks." },
+    { question: "Where do FSU students go out?", options: ["The Strip","Library","Class","Gym"], answer: "The Strip", drink: "Anyone who’s had a confusing night there drinks." },
+    { question: "Which bar is called Pots?", options: ["Potbelly’s","Palace","Proof","Poor Paul’s"], answer: "Potbelly’s", drink: "Long line survivors drink." },
+    { question: "FSU chant?", options: ["Tomahawk Chop","Gator Chomp","War Eagle","Rock Chalk"], answer: "Tomahawk Chop", drink: "Last person to do it drinks." },
+    { question: "FSU colors?", options: ["Garnet and Gold","Red and Black","Orange and Blue","Green"], answer: "Garnet and Gold", drink: "Miss it = drink twice." },
+    { question: "Late night food?", options: ["Guthrie’s","Nobu","Chipotle","Panera"], answer: "Guthrie’s", drink: "Late-night eaters drink." },
+    { question: "FSU city?", options: ["Tallahassee","Miami","Tampa","Gainesville"], answer: "Tallahassee", drink: "Wrong = drink." },
+    { question: "Which bar is known for its outdoor games and big crowds in CollegeTown?", options: ["Madison Social", "Recess", "Proof", "Township"], answer: "Madison Social", drink: "Anyone who has waited too long for a table at MadSo drinks." },
+    { question: "Which place is famous for cheap drinks and chaotic energy near campus?", options: ["Potbelly’s", "Bullwinkle’s", "Palace", "Proof"], answer: "Potbelly’s", drink: "Anyone who has blacked out at Pots drinks (respectfully)." },
+    { question: "Which bar is known for being more chill and slightly older crowd vibes?", options: ["Proof Brewing", "Recess", "Bullwinkle’s", "Pots"], answer: "Proof Brewing", drink: "Anyone who has gone out and said 'let’s do something chill tonight' drinks." },
+    { question: "What is the unofficial FSU pregame tradition?", options: ["Starting early", "Drinking water", "Going to bed early", "Studying"], answer: "Starting early", drink: "Everyone who has pregamed before sunset drinks." },
+    { question: "What usually happens after saying 'just one drink'?", options: ["You go home", "You stay out all night", "You study", "You sleep early"], answer: "You stay out all night", drink: "Everyone who has said 'just one drink' and lied drinks." },
+    { question: "Which place is known for late-night fast food runs?", options: ["Guthrie’s", "Chick-fil-A", "Panera", "Whole Foods"], answer: "Guthrie’s", drink: "Anyone who has eaten Guthrie’s after going out drinks." },
+    { question: "Which FSU location is known for studying (supposedly)?", options: ["Strozier Library", "The Strip", "Recess", "MadSo"], answer: "Strozier Library", drink: "Anyone who has gone to Strozier and not studied drinks." },
+    { question: "What is a classic FSU game day activity?", options: ["Tailgating", "Sleeping", "Shopping", "Netflix"], answer: "Tailgating", drink: "Anyone who has tailgated drinks." },
+    { question: "Which place is known for chaotic dance floors?", options: ["Bullwinkle’s", "Proof", "Library", "Target"], answer: "Bullwinkle’s", drink: "Anyone who has danced badly at Bull’s drinks." },
+    { question: "Which phrase describes most FSU weekends?", options: ["Unplanned chaos", "Peaceful rest", "Studying nonstop", "Early nights"], answer: "Unplanned chaos", drink: "If this describes your life, drink." },
+    { question: "What is the most common FSU excuse?", options: ["I have an 8 AM", "I’m tired", "I’m not going out", "All of the above"], answer: "All of the above", drink: "Everyone who has used any of these excuses drinks." },
+    { question: "Which bar is known for lines that make you question your life choices?", options: ["Potbelly’s", "Proof", "Chipotle", "Starbucks"], answer: "Potbelly’s", drink: "If you’ve waited in that line, drink." },
+    { question: "Which place is most likely to lead to losing your phone?", options: ["The Strip", "Library", "Classroom", "Gym"], answer: "The Strip", drink: "If you’ve lost something on a night out, drink." },
+    { question: "Which FSU activity sounds productive but isn’t?", options: ["Going to Strozier", "Actually studying", "Sleeping early", "Reading"], answer: "Going to Strozier", drink: "If you’ve gone and done nothing, drink." },
+    { question: "Which phrase guarantees a long night?", options: ["Let’s send it", "I’m tired", "I’m staying in", "Goodnight"], answer: "Let’s send it", drink: "Everyone who has said this drinks." },
+    { question: "What’s the most dangerous combination?", options: ["Pregame + Bull’s", "Sleep + coffee", "Gym + water", "Class + notes"], answer: "Pregame + Bull’s", drink: "If you’ve survived this combo, drink." },
+    { question: "Which place is most likely to turn one drink into ten?", options: ["Recess", "Library", "Panera", "CVS"], answer: "Recess", drink: "If this has happened to you, drink." },
+    { question: "What’s the real meaning of 'I’ll go out for a bit'?", options: ["3+ hours minimum", "10 minutes", "One drink", "Sleep soon"], answer: "3+ hours minimum", drink: "Everyone who knows this is true drinks." },
+    { question: "Which FSU moment hits hardest?", options: ["Sunday scaries", "Monday class", "Losing your card", "All of the above"], answer: "All of the above", drink: "Everyone drinks. Life is hard." },
+    { question: "What is the most FSU-coded decision?", options: ["Going out before a test", "Studying early", "Sleeping early", "Eating healthy"], answer: "Going out before a test", drink: "If you’ve done this, drink." },
+    { question: "What do students yell during the War Chant?", options: ["Ohhh ohhh ohhh", "Hey hey hey", "Go Noles", "Defense!"], answer: "Ohhh ohhh ohhh", drink: "Everyone attempts it. Worst one drinks." },
+    { question: "What do people do with their arms during the Tomahawk Chop?", options: ["Swing side to side", "Clap", "Point down", "Wave randomly"], answer: "Swing side to side", drink: "Last person to start chopping drinks." },
+    { question: "What’s the vibe at Strozier after midnight?", options: ["Delusion", "Productivity", "Peace", "Silence"], answer: "Delusion", drink: "If you’ve studied there past midnight, drink." },
+    { question: "What happens the week before finals at FSU?", options: ["Everyone panics", "Everyone studies early", "Nothing changes", "People sleep more"], answer: "Everyone panics", drink: "Everyone who has crammed drinks." },
+    { question: "What is the real purpose of going to Strozier?", options: ["Seeing people", "Studying", "Sleeping", "Eating"], answer: "Seeing people", drink: "If you’ve gone just to be seen, drink." },
+    { question: "What’s a classic FSU game day outfit?", options: ["Garnet and gold everything", "Suit and tie", "All black", "Pajamas"], answer: "Garnet and gold everything", drink: "Anyone who has overdressed for game day drinks." },
+    { question: "What happens when you say 'I’m not going out tonight'?", options: ["You go out anyway", "You sleep early", "You study", "You stay in"], answer: "You go out anyway", drink: "Everyone who has lied like this drinks." },
+    { question: "What’s the most dangerous text to receive?", options: ["Where are you?", "We’re going out", "Pull up", "All of the above"], answer: "All of the above", drink: "Everyone drinks. You’ve all been there." },
+    { question: "What’s the unofficial FSU morning routine after going out?", options: ["Regret + hydration", "Workout", "Class prep", "Meditation"], answer: "Regret + hydration", drink: "Anyone who has experienced this drinks." },
+    { question: "What does 'pregame' actually mean?", options: ["The main event", "One drink", "Just talking", "Nothing serious"], answer: "The main event", drink: "Everyone who knows this drinks." },
+    { question: "What’s the most FSU way to miss class?", options: ["Oversleeping after going out", "Forgetting", "Traffic", "Being sick"], answer: "Oversleeping after going out", drink: "If you’ve done this, drink." },
+    { question: "What is the true meaning of 'I’ll leave early'?", options: ["You won’t", "You will", "Maybe", "Depends"], answer: "You won’t", drink: "Everyone who stayed out too long drinks." },
+    { question: "What’s the most common FSU memory loss moment?", options: ["How did we get here?", "What time is it?", "Where is my phone?", "All of the above"], answer: "All of the above", drink: "Everyone drinks. Be honest." },
+    { question: "What happens when someone says 'just one more bar'?", options: ["It becomes 3 more", "You go home", "You sleep", "You study"], answer: "It becomes 3 more", drink: "Anyone who’s fallen for this drinks." },
+    { question: "What’s the most iconic FSU energy?", options: ["Chaotic fun", "Calm studying", "Early nights", "Routine"], answer: "Chaotic fun", drink: "If this describes you, drink." },
+    { question: "What is the real meaning of 'I have an 8 AM'?", options: ["I’m still going out", "I’m staying in", "I’m studying", "I’m sleeping early"], answer: "I’m still going out", drink: "Everyone who ignored an 8 AM drinks." },
+    { question: "What’s the most likely outcome of a spontaneous night out?", options: ["Chaos", "Regret", "Stories", "All of the above"], answer: "All of the above", drink: "Everyone drinks. No explanation needed." },
+    { question: "What’s the real reason people go to CollegeTown?", options: ["Vibes", "Food", "Studying", "Quiet time"], answer: "Vibes", drink: "Anyone who went just for vibes drinks." },
+    { question: "What is the most dangerous group decision?", options: ["Let’s go out", "Let’s stay in", "Let’s study", "Let’s sleep"], answer: "Let’s go out", drink: "Everyone who said yes too fast drinks." },
+    { question: "What’s the most accurate FSU weekend description?", options: ["Unpredictable", "Organized", "Relaxing", "Calm"], answer: "Unpredictable", drink: "Everyone who agrees drinks." }
+];
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function initGame(){
+    const players = JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');
+    const state = {players, currentPlayerIndex:0, questions:shuffle([...QUESTIONS])};
+    localStorage.setItem(GAME_KEY, JSON.stringify(state));
+    return state;
+}
+
+function getState(){return JSON.parse(localStorage.getItem(GAME_KEY));}
+
+function renderPlayer(state){
+    const p = state.players[state.currentPlayerIndex];
+    document.getElementById('player-turn').innerHTML =
+        `<span class="badge" style="background:${p.color}; color:black; padding:6px 14px; border-radius:12px;">${p.name}'s turn</span>`;
+}
+
+function nextQuestion(){
+    let state = getState() || initGame();
+    const q = state.questions.pop();
+    state.currentQuestion = q;
+
+    renderPlayer(state);
+
+    document.getElementById('question-box').textContent = q.question;
+    document.getElementById('result-text').textContent = "";
+    document.getElementById('drink-box').style.display = "none";
+
+    const box = document.getElementById('options-box');
+    box.innerHTML = "";
+
+    shuffle(q.options).forEach(opt=>{
+        const b = document.createElement('button');
+        b.className="option-btn";
+        b.textContent=opt;
+        b.onclick=()=>checkAnswer(opt);
+        box.appendChild(b);
+    });
+
+    localStorage.setItem(GAME_KEY, JSON.stringify(state));
+}
+
+function checkAnswer(opt){
+    let state = getState();
+    const q = state.currentQuestion;
+
+    const result = document.getElementById('result-text');
+    const drink = document.getElementById('drink-box');
+
+    if(opt===q.answer){
+        result.textContent="Correct!";
+        result.style.color="green";
+    } else {
+        result.textContent=`Wrong! ${q.answer}`;
+        result.style.color="red";
+    }
+
+    drink.style.display="block";
+    drink.textContent=q.drink;
+
+    document.querySelectorAll('.option-btn').forEach(b=>b.disabled=true);
+
+    state.currentPlayerIndex=(state.currentPlayerIndex+1)%state.players.length;
+    localStorage.setItem(GAME_KEY, JSON.stringify(state));
+}
+
+function restartGame(){
+    localStorage.removeItem(GAME_KEY);
+    initGame();
+    nextQuestion();
+}
+
+/* HOLD BACK */
+const backButton=document.getElementById("back-button");
+let holdTimer=null;
+
+backButton.addEventListener("mousedown",()=>{backButton.classList.add("holding");holdTimer=setTimeout(()=>{window.location.href="{% url 'game_select' %}"},2000);});
+backButton.addEventListener("mouseup",()=>{clearTimeout(holdTimer);backButton.classList.remove("holding");});
+backButton.addEventListener("mouseleave",()=>{clearTimeout(holdTimer);backButton.classList.remove("holding");});
+
+window.onload=()=>{initGame();nextQuestion();}
+</script>
+
+{% endblock %}

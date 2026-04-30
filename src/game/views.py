@@ -22,3 +22,6 @@ def ride_the_bus(request):
 
 def truth_or_drink(request):
     return render(request, 'game/truth_or_drink.html')
+
+def fsu_trivia(request):
+    return render(request, 'game/FSU_trivia.html')
