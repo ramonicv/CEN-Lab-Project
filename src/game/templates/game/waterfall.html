@@ -272,8 +272,9 @@
         document.getElementById('draw-btn').disabled = false;
     }
 
-    /*Hold to go Back - Button Logic*/
-    const backButton = document.getElementById("back-button");
+    /*Hold to go Back - Button Logic - using menu config*/
+    const backConfig = window.MENU_CONFIG.game.backButton;
+    const backButton = document.getElementById(backConfig.id);
     let holdTimer = null;
 
     backButton.addEventListener("mousedown", startHold);
@@ -286,8 +287,8 @@
         backButton.classList.add("holding");
 
         holdTimer = setTimeout(() => {
-            window.location.href = "{% url 'game_select' %}";
-        }, 2000);
+            window.location.href = backConfig.url;
+        }, backConfig.holdDuration);
     }
 
     function cancelHold() {

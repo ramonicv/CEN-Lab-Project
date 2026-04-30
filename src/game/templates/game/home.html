@@ -11,16 +11,28 @@
         Teena Singh, and Francisco de la Esp.
     </p>
 
-    <button class="btn btn-success btn-lg mt-4" onclick="toSignup()">
-        Start Game
-    </button>
+    <div id="home-buttons-container"></div>
 
 </div>
 
 <script>
-    function toSignup() {
-        window.location.href = "{% url 'signup' %}";
+    // Render home page buttons from menu config
+    function renderHomeButtons() {
+        const container = document.getElementById('home-buttons-container');
+        const config = window.MENU_CONFIG.home.startGame;
+        
+        container.innerHTML = `
+            <button class="${config.class}" onclick="toSignup()">
+                ${config.label}
+            </button>
+        `;
     }
+
+    function toSignup() {
+        window.location.href = `${window.MENU_CONFIG.home.startGame.url}`;
+    }
+
+    window.addEventListener('DOMContentLoaded', renderHomeButtons);
 </script>
 
 {% endblock %}
