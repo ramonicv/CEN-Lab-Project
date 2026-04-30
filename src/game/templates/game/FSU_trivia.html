@@ -7,6 +7,10 @@
         margin: 0;
         padding: 0;
         min-height: 100%;
+        background:
+            radial-gradient(circle at top, rgba(206,184,136,0.4), transparent 40%),
+            linear-gradient(135deg, #2b0f18 0%, #782F40 50%, #CEB888 100%);
+        background-attachment: fixed;
     }
 
     .center-page {
@@ -24,10 +28,6 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-
-        background:
-            radial-gradient(circle at top, rgba(206,184,136,0.4), transparent 40%),
-            linear-gradient(135deg, #2b0f18 0%, #782F40 50%, #CEB888 100%);
     }
 
     .fsu-title {
@@ -264,7 +264,7 @@ function getState(){return JSON.parse(localStorage.getItem(GAME_KEY));}
 function renderPlayer(state){
     const p = state.players[state.currentPlayerIndex];
     document.getElementById('player-turn').innerHTML =
-        `<span class="badge" style="background:${p.color}; color:black; padding:6px 14px; border-radius:12px;">${p.name}'s turn</span>`;
+        `<span class="badge" style="background:${p.color}; color:black; font-size:1.5rem; padding:6px 14px; border-radius:12px;">${p.name}'s turn</span>`;
 }
 
 function nextQuestion(){
