@@ -1,0 +1,12 @@
+services:
+  django:
+    build: . # tells Docker to build the image from the Dockerfile in the current directory
+    ports:
+      - "8000:8000"
+    environment:
+      DEBUG: 'True'
+      SECRET_KEY: 'local-dev-key'
+      ALLOWED_HOSTS: 'localhost,127.0.0.1'
+    volumes:
+      - .:/app # for development, mounts the current directory to /app in the container (allows docker to see code changes without rebuilding)
+    restart: unless-stopped
