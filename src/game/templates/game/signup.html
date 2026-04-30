@@ -33,7 +33,7 @@
 <div class="center-page text-center">
 
     <h1 class="fw-bold mb-3">Who's playing?</h1>
-    <p id="player-count" class="text-muted">0 / 10 players</p>
+    <p id="player-count" class="text-muted">0 / 25 players</p>
 
     <!-- Player list -->
     <div id="player-list" class="mb-3"></div>
@@ -45,21 +45,14 @@
     </div>
 
     <!-- Action buttons -->
-    <div class="mt-3">
-        <button class="btn btn-outline-danger me-2" onclick="clearPlayers()">Clear List</button>
-
-        <button type="button" id="toSignup-btn"
-                class="btn btn-success"
-                style="display:none;"
-                onclick="toSignup()">
-            Continue
-        </button>
+    <div class="mt-3" id="button-container">
+        <!-- Buttons will be rendered here from menu config -->
     </div>
 
 </div>
 
 <script>
-    const MAX = 10;
+    const MAX = 25;
     const STORAGE_KEY = 'chupi_players';
 
     // color palette for player text boxes, ensuring good contrast with the background colors from base.html, and variety
@@ -159,18 +152,40 @@
     }
 
     function toSignup() {
-        window.location.href = "{% url 'game_select' %}";
+        window.location.href = "${window.MENU_CONFIG.signup.continue.url}";
+    }
+
+    // Render signup page buttons from menu config
+    function renderSignupButtons() {
+        const container = document.getElementById('button-container');
+        const clearConfig = window.MENU_CONFIG.signup.clearList;
+        const continueConfig = window.MENU_CONFIG.signup.continue;
+        
+        container.innerHTML = `
+            <button class="${clearConfig.class}" onclick="clearPlayers()">${clearConfig.label}</button>
+            <button type="button" 
+                    id="${continueConfig.id}"
+                    class="${continueConfig.class}"
+                    style="${continueConfig.style}"
+                    onclick="toSignup()">
+                ${continueConfig.label}
+            </button>
+        `;
     }
 
     // attach enter key to addPlayer(), so you dont have to click the html button manually every time
     document.addEventListener('DOMContentLoaded', () => {
+        renderSignupButtons();
         document.getElementById('name-input').addEventListener('keydown', e => {
             if (e.key === 'Enter') addPlayer();
         });
         render();
     });
 
-    window.onload = render;
+    window.onload = () => {
+        renderSignupButtons();
+        render();
+    };
 </script>
 
 {% endblock %}

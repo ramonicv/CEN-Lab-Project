@@ -7,22 +7,41 @@
     <div id="player-preview" class="mb-4"></div>
 
     <div class="d-grid gap-3 w-75 mx-auto">
-        <a href="{% url 'waterfall' %}" class="btn btn-lg btn-primary">Waterfall</a>
-        <a href="{% url 'screw_the_dealer' %}" class="btn btn-lg btn-primary">Screw the Dealer</a>
-        <a href="{% url 'ride_the_bus' %}" class="btn btn-lg btn-primary">Ride the Bus</a>
-        <a href="{% url 'truth_or_drink' %}" class="btn btn-lg btn-primary">Truth or Drink</a>
-        <!-- add more games here as they are built -->
+        <div id="game-buttons-container"></div>
     </div>
 
     <div class="mt-4">
-        <a href="{% url 'signup' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+        <div id="back-button-container"></div>
     </div>
 </div>
 
 <script>
     const STORAGE_KEY = 'chupi_players';
 
+    // Render game buttons from menu config
+    function renderGameButtons() {
+        const container = document.getElementById('game-buttons-container');
+        const games = window.MENU_CONFIG.gameSelect.games;
+        
+        container.innerHTML = games.map(game => 
+            `<a href="${game.url}" class="${game.class}">${game.label}</a>`
+        ).join('');
+    }
+
+    // Render back button from menu config
+    function renderBackButton() {
+        const container = document.getElementById('back-button-container');
+        const config = window.MENU_CONFIG.gameSelect.back;
+        
+        container.innerHTML = `
+            <a href="${config.url}" class="${config.class}">${config.label}</a>
+        `;
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
+        renderGameButtons();
+        renderBackButton();
+
         const players = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         const preview = document.getElementById('player-preview');
 
