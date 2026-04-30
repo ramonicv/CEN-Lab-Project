@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+
+<div id="game-container" class="center-page">
+    
+    <div id="setup-phase" class="card shadow-sm border-0 p-4 w-100" style="border-radius: 20px;">
+        <h2 class="text-center mb-4">Imposter</h2>
+        <div id="setup-error" class="alert alert-danger d-none"></div>
+        
+        <label class="fw-bold mb-2">Enter Player Names</label>
+        <div id="player-inputs">
+            <input type="text" class="form-control mb-2 p-name" placeholder="Player 1">
+            <input type="text" class="form-control mb-2 p-name" placeholder="Player 2">
+            <input type="text" class="form-control mb-2 p-name" placeholder="Player 3">
+            <input type="text" class="form-control mb-2 p-name" placeholder="Player 4">
+        </div>
+        <button class="btn btn-sm btn-outline-secondary mb-3" onclick="addInput()">+ Add Player</button>
+
+        <button class="btn btn-success btn-lg w-100" onclick="showCategoryModal()">Choose Category</button>
+    </div>
+
+    <div id="category-modal" class="d-none" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center;">
+        <div class="card p-4 mx-3" style="border-radius: 20px; max-width: 400px; width: 100%;">
+            <h4 class="text-center mb-3">Pick a Category</h4>
+            <div id="category-buttons" class="d-grid gap-2">
+                </div>
+        </div>
+    </div>
+
+    <div id="reveal-phase" class="card shadow-sm border-0 p-4 w-100 d-none text-center" style="border-radius: 20px;">
+        <h3 id="pass-to-user">Pass to Player</h3>
+        <div id="reveal-box" class="py-5 my-3 bg-light" style="cursor:pointer; border-radius:15px; border: 2px dashed #ccc;">
+            <p id="reveal-hint">Click to reveal secret word</p>
+            <div id="secret-word-display" class="d-none">
+                <h1 id="the-word" class="display-4 fw-bold"></h1>
+                <p class="text-muted" id="the-role"></p>
+            </div>
+        </div>
+        <button id="next-btn" class="btn btn-dark w-100 py-3" onclick="nextReveal()">Next Player</button>
+    </div>
+
+</div>
+
+<script>
+    // Rule 2: Word Bank stored entirely in JS
+    const wordBank = {
+        "Animals": ["Elephant", "Penguin", "Honey Badger", "Kangaroo", "Axolotl"],
+        "Food": ["Sushi", "Lasagna", "Poutine", "Guacamole", "Croissant"],
+        "Places": ["Tallahassee", "Paris", "Tokyo", "Macchu Picchu", "Giza"],
+        "Objects": ["Telescope", "Microscope", "Record Player", "Hammock"],
+        "Jobs": ["Astronaut", "Surgeon", "Software Engineer", "Chef"]
+    };
+
+    let gameState = {
+        players: [],
+        imposter: "",
+        secretWord: "",
+        currentIndex: 0
+    };
+
+    function addInput() {
+        const container = document.getElementById('player-inputs');
+        const input = document.createElement('input');
+        input.className = 'form-control mb-2 p-name';
+        input.placeholder = `Player ${container.querySelectorAll('input').length + 1}`;
+        container.appendChild(input);
+    }
+
+    function showCategoryModal() {
+        const nameInputs = document.querySelectorAll('.p-name');
+        const names = Array.from(nameInputs).map(i => i.value.trim()).filter(v => v !== "");
+        
+        // Rule 1: Minimum 4 Players
+        if (names.length < 4) {
+            const err = document.getElementById('setup-error');
+            err.innerText = "Minimum 4 players required!";
+            err.classList.remove('d-none');
+            return;
+        }
+
+        gameState.players = names;
+        const modal = document.getElementById('category-modal');
+        const btnContainer = document.getElementById('category-buttons');
+        btnContainer.innerHTML = '';
+        modal.classList.remove('d-none');
+        modal.style.display = 'flex';
+
+        // Add Categories + Random
+        const cats = Object.keys(wordBank).concat(["Random"]);
+        cats.forEach(cat => {
+            const btn = document.createElement('button');
+            btn.className = "btn btn-outline-primary py-2";
+            btn.innerText = cat;
+            btn.onclick = () => startGame(cat);
+            btnContainer.appendChild(btn);
+        });
+    }
+
+    function startGame(category) {
+        let selectedCat = category;
+        if (category === "Random") {
+            const keys = Object.keys(wordBank);
+            selectedCat = keys[Math.floor(Math.random() * keys.length)];
+        }
+
+        // Rule 2 & 3: Word and Role Assignment
+        gameState.secretWord = wordBank[selectedCat][Math.floor(Math.random() * wordBank[selectedCat].length)];
+        gameState.imposter = gameState.players[Math.floor(Math.random() * gameState.players.length)];
+        
+        document.getElementById('category-modal').style.display = 'none';
+        document.getElementById('setup-phase').classList.add('d-none');
+        document.getElementById('reveal-phase').classList.remove('d-none');
+        updateRevealUI();
+    }
+
+    function updateRevealUI() {
+        const player = gameState.players[gameState.currentIndex];
+        document.getElementById('pass-to-user').innerText = `Pass phone to: ${player}`;
+        document.getElementById('reveal-hint').classList.remove('d-none');
+        document.getElementById('secret-word-display').classList.add('d-none');
+        
+        const isImposter = player === gameState.imposter;
+        const wordEl = document.getElementById('the-word');
+        
+        wordEl.innerText = isImposter ? "NO WORD" : gameState.secretWord;
+        wordEl.className = isImposter ? "text-danger display-4 fw-bold" : "text-success display-4 fw-bold";
+        document.getElementById('the-role').innerText = isImposter ? "You are the IMPOSTER! Blend in." : "You are the CREW.";
+        
+        if (gameState.currentIndex === gameState.players.length - 1) {
+            document.getElementById('next-btn').innerText = "Start Discussion Phase";
+        }
+    }
+
+    document.getElementById('reveal-box').onclick = function() {
+        document.getElementById('reveal-hint').classList.add('d-none');
+        document.getElementById('secret-word-display').classList.remove('d-none');
+    };
+
+    function nextReveal() {
+        gameState.currentIndex++;
+        if (gameState.currentIndex < gameState.players.length) {
+            updateRevealUI();
+        } else {
+            alert("Everyone has seen their word. Begin your clues!");
+            location.reload(); // Restarts game for now
+        }
+    }
+</script>
+{% endblock %}

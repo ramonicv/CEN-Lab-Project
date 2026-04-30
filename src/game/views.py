@@ -16,3 +16,7 @@ def waterfall(request):
 
 def screw_the_dealer(request):
     return render(request, 'game/screw_the_dealer.html')
+
+def imposter(request):
+    return render(request, 'game/imposter.html')
+
