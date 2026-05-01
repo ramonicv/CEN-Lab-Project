@@ -1,23 +1,26 @@
-# CEN-Lab-Project
-Current version: 1.01
+# CEN Lab Project: Chupi
+Current version: 1.1
 
-### V1.01 Changelog:
-- 1.01 implements Dockerfile and functionality for Railway CI/CD pipeline
-    - Before this, the app only worked locally.
-
-NOTES: 
-- The logic and structure of the app is as follows: 
-    - `src/` holds app source code
-    - `src/core/` holds base classes `GameBase` and `Player`
-    - `src/media/` is *meant* to hold any images or data files (.png, .json, etc)
-    - `src/templates/` holds base.html and any other global template files
-    - `src/game/` holds the entire current app view, url, and app logic, as well as templates for this app. This may be expanded in the future by adding more app directories, and using game as just the initial page
-- The app is managed using Django's `manage.py` which is in the root directory. All changes/additions to the app should be managed via manage.py if appropriate (if unsure, refer to the Django documentation).
+### V1.1 Changelog:
+Added:
+- Games:
+    - FSU Trivia
+    - Picolo
+    - Ride the Bus
+    - Truth or Drink
+    - Imposter
+- Centralized website structure in base.html, including global data structures and styling    
+- (From v1.01): Implemented Docker functionality for CI/CD pipeline
 
 ## Useful commands reference
 
-### Running the app
-`python manage.py runserver`      Start the app (current directory must be root)
+### Running the app (current directory must be project root)
+
+Using python manage.py (NOT RECOMMENDED):
+`python manage.py runserver` 
+
+Using Docker:
+`docker-compose up --build` 
 
 ### Virtual Environment
 `python3 -m venv .venv`           Create venv  
