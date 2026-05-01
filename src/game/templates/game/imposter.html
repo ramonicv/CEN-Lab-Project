@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<style>
+    .back-btn {
+        position: relative;
+        overflow: hidden;
+        background-color: rgba(255, 255, 255, 0.9);
+        border: 2px solid #6c757d;
+        color: #2c2c2c;
+    }
+
+    .back-btn::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 4px; /* The thickness of the loading bar */
+        width: 0%;
+        background: #f0ad4e; /* The gold/orange fill color */
+        transition: width 2s linear;
+    }
+
+    .back-btn.holding::after {
+        width: 100%;
+    }
+
+    .game-btn {
+        font-weight: 600;
+        padding: 10px 14px;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        border: none;
+    }
+
+    #restart-button {
+        background-color: #ffc107;
+        color: #1f1f1f;
+    }
+
+    .back-btn:hover, #restart-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+    }
+
+    .back-btn:active, #restart-button:active {
+        transform: scale(0.96);
+    }
+</style>
+
+<div id="game-container" class="center-page">
+    
+
+    <div id="rules-phase" class="card shadow-sm border-0 p-4 w-100" style="border-radius: 20px;">
+        <h2 class="text-center mb-3">How to Play</h2>
+        <ul class="text-start mb-4 text-muted">
+            <li>At least <strong>4 players</strong> are required.</li>
+            <li>Everyone gets a <strong>Secret Word</strong>, except one person (The Imposter).</li>
+            <li>Take turns giving a <strong>one-word clue</strong> about your word.</li>
+            <li>Discuss and vote: If you catch the imposter, you win! If they blend in, they win.</li>
+        </ul>
+        <div id="setup-error" class="alert alert-danger d-none"></div>
+        <button class="btn btn-primary btn-lg w-100" onclick="initiateCategorySelection()">Got it, let's go!</button>
+    </div>
+
+    <div id="category-modal" class="d-none" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <div class="card p-4 mx-3" style="border-radius: 20px; max-width: 400px; width: 100%;">
+            <h4 class="text-center mb-3">Pick a Theme</h4>
+            <div id="category-buttons" class="d-grid gap-2"></div>
+        </div>
+
+        <button id="back-btn-modal" class="game-btn back-btn mt-3">Hold to Go Back to Game Select</button>
+    </div>
+
+    <div id="reveal-phase" class="card shadow-sm border-0 p-4 w-100 d-none text-center" style="border-radius: 20px;">
+        <h3 id="pass-to-user">Pass to Player</h3>
+        <div id="reveal-box" class="py-5 my-3 bg-light" style="cursor:pointer; border-radius:15px; border: 2px dashed #ccc;">
+            <p id="reveal-hint">Click to reveal secret word</p>
+            <div id="secret-word-display" class="d-none">
+                <h1 id="the-word" class="display-4 fw-bold"></h1>
+                <p class="text-muted" id="the-role"></p>
+            </div>
+        </div>
+        <button id="next-btn" class="btn btn-dark w-100 py-3" onclick="nextReveal()">Next Player</button>
+
+        <button id="back-btn-reveal" class="game-btn back-btn mt-3">Hold to Go Back to Game Select</button>
+    </div>
+
+
+    <div id="gameplay-phase" class="card shadow-sm border-0 p-4 w-100 d-none text-center" style="border-radius: 20px;">
+        <h2 class="mb-4">Discussion Phase</h2>
+        <p class="text-muted">Take turns giving clues. Once everyone has spoken, discuss who the imposter might be.
+            Eliminate players by voting for the imposter. If you catch them, you win! If they blend in, they win!
+        </p>
+        
+        <button class="btn btn-danger btn-lg w-100 py-3 mt-4" style="border-radius:15px; font-weight:bold;" onclick="revealImposter()">
+            Reveal the Imposter!
+        </button>
+        
+        <div class="mt-3">
+            <button id="back-btn-gameplay" class="game-btn back-btn">Hold to Go Back to Game Select</button>
+        </div>
+    </div>
+
+    <div id="final-reveal" class="card shadow-sm border-0 p-4 w-100 d-none text-center" style="border-radius: 20px;">
+        <h1 class="mb-2">Game Over!</h1>
+        <p class="text-muted mb-4">The secret word was: <strong id="final-word"></strong></p>
+        
+        <div class="alert alert-warning py-4 mb-4">
+            <p class="mb-1 text-uppercase small fw-bold">The Imposter was:</p>
+            <h2 id="final-imposter" class="mb-0"></h2>
+        </div>
+
+        <div class="mt-4">
+            <button id="back-btn-final" class="game-btn back-btn">
+                Hold to Go Back
+            </button>
+
+            <button id="restart-button" class="game-btn ms-2" onclick="restartGame()">
+                Restart
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const STORAGE_KEY = 'chupi_players'; //Key to load players
+    const RULES_VIEWED_KEY = 'imposter_rules_viewed';
+    
+    const wordBank = {
+        "Animals": ["Elephant", "Penguin", "Honey Badger", "Kangaroo", "Axolotl"],
+        "Food": ["Sushi", "Lasagna", "Poutine", "Guacamole", "Croissant"],
+        "Places": ["Tallahassee", "Paris", "Tokyo", "Macchu Picchu", "Giza"],
+        "Objects": ["Telescope", "Microscope", "Record Player", "Hammock"],
+        "Jobs": ["Astronaut", "Surgeon", "Software Engineer", "Chef"]
+    };
+
+    let gameState = {
+        players: [],
+        imposter: "",
+        secretWord: "",
+        currentIndex: 0
+    };
+
+    // Load players from signup.html storage
+    function getRegisteredPlayers() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+    }
+
+    // Check rules visibility on load
+    window.addEventListener('DOMContentLoaded', () => {
+        const hasViewedRules = localStorage.getItem(RULES_VIEWED_KEY);
+        if (hasViewedRules) {
+            document.getElementById('rules-phase').classList.add('d-none');
+            initiateCategorySelection();
+        }
+    setupHoldButton('back-btn-modal');
+    setupHoldButton('back-btn-reveal');
+    setupHoldButton('back-btn-gameplay');
+    setupHoldButton('back-btn-final');
+    });
+
+    function initiateCategorySelection() {
+        const players = getRegisteredPlayers();
+        
+        // Rule: Prevent game if < 4 players
+        if (players.length < 4) {
+            const err = document.getElementById('setup-error');
+            err.innerText = `You only have ${players.length} players. Please go back to signup and add at least 4.`;
+            err.classList.remove('d-none');
+            document.getElementById('rules-phase').classList.remove('d-none');
+            return;
+        }
+
+        // Set rules as viewed after first successful entry
+        localStorage.setItem(RULES_VIEWED_KEY, 'true');
+        
+        // Fix: Use the full player object/name to ensure uniqueness
+        gameState.players = players.map(p => p.name);
+        
+        showCategoryModal();
+    }
+
+    function showCategoryModal() {
+        const modal = document.getElementById('category-modal');
+        const btnContainer = document.getElementById('category-buttons');
+        btnContainer.innerHTML = '';
+        modal.classList.remove('d-none');
+        modal.style.display = 'flex';
+
+        const cats = Object.keys(wordBank).concat(["Random"]);
+        cats.forEach(cat => {
+            const btn = document.createElement('button');
+            btn.className = "btn btn-outline-primary py-2";
+            btn.innerText = cat;
+            btn.onclick = () => startGame(cat);
+            btnContainer.appendChild(btn);
+        });
+    }
+
+    function startGame(category) {
+        let selectedCat = category;
+        if (category === "Random") {
+            const keys = Object.keys(wordBank);
+            selectedCat = keys[Math.floor(Math.random() * keys.length)];
+        }
+
+        gameState.secretWord = wordBank[selectedCat][Math.floor(Math.random() * wordBank[selectedCat].length)];
+        
+        // Bug Fix: Assign imposter by index to avoid duplicate name issues
+        const imposterIndex = Math.floor(Math.random() * gameState.players.length);
+        gameState.imposter = gameState.players[imposterIndex];
+        
+        document.getElementById('category-modal').style.display = 'none';
+        document.getElementById('rules-phase').classList.add('d-none');
+        document.getElementById('reveal-phase').classList.remove('d-none');
+        updateRevealUI();
+    }
+
+    /* Updated Restart Logic */
+    function restartGame() {
+        gameState.currentIndex = 0;
+        
+        // Hide game over screen
+        document.getElementById('final-reveal').classList.add('d-none');
+        
+        // Jump straight to category selection (skipping rules as requested)
+        initiateCategorySelection();
+    }
+
+    function updateRevealUI() {
+        const player = gameState.players[gameState.currentIndex];
+        document.getElementById('pass-to-user').innerText = `Pass to: ${player}`;
+        document.getElementById('reveal-hint').classList.remove('d-none');
+        document.getElementById('secret-word-display').classList.add('d-none');
+        
+        const isImposter = player === gameState.imposter;
+        const wordEl = document.getElementById('the-word');
+        wordEl.innerText = isImposter ? "NO WORD" : gameState.secretWord;
+        wordEl.className = isImposter ? "text-danger display-4 fw-bold" : "text-success display-4 fw-bold";
+        document.getElementById('the-role').innerText = isImposter ? "You are the IMPOSTER! Blend in." : "You are the CREW.";
+        
+        if (gameState.currentIndex === gameState.players.length - 1) {
+            document.getElementById('next-btn').innerText = "Finish Card Reveal";
+        }
+    }
+
+    document.getElementById('reveal-box').onclick = function() {
+        document.getElementById('reveal-hint').classList.add('d-none');
+        document.getElementById('secret-word-display').classList.remove('d-none');
+    };
+
+    function nextReveal() {
+        const wordDisplay = document.getElementById('secret-word-display');
+        if (wordDisplay.classList.contains('d-none')) {
+            // Word hasn't been revealed yet, shake the button as feedback
+            const btn = document.getElementById('next-btn');
+            btn.textContent = 'Tap the card first!';
+            setTimeout(() => {
+                btn.textContent = gameState.currentIndex === gameState.players.length - 1
+                    ? 'Finish Card Reveal'
+                    : 'Next Player';
+            }, 1500);
+            return;
+        }
+
+        gameState.currentIndex++;
+        if (gameState.currentIndex < gameState.players.length) {
+            updateRevealUI();
+        } else {
+            document.getElementById('reveal-phase').classList.add('d-none');
+            document.getElementById('gameplay-phase').classList.remove('d-none');
+        }
+    }
+
+    function revealImposter() {
+        document.getElementById('gameplay-phase').classList.add('d-none');
+        document.getElementById('final-reveal').classList.remove('d-none');
+        document.getElementById('final-word').innerText = gameState.secretWord;
+        document.getElementById('final-imposter').innerText = gameState.imposter;
+    }
+
+    /* Hold to Go Back - Reusable Logic */
+    let holdTimer = null;
+ 
+    function startHold(btn) {
+        btn.classList.add('holding');
+        holdTimer = setTimeout(() => {
+            window.location.href = "{% url 'game_select' %}";
+        }, 2000);
+    }
+ 
+    function cancelHold(btn) {
+        clearTimeout(holdTimer);
+        btn.classList.remove('holding');
+    }
+ 
+    function setupHoldButton(id) {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.addEventListener('mousedown', () => startHold(btn));
+        btn.addEventListener('mouseup', () => cancelHold(btn));
+        btn.addEventListener('mouseleave', () => cancelHold(btn));
+        btn.addEventListener('touchstart', (e) => { e.preventDefault(); startHold(btn); });
+        btn.addEventListener('touchend', () => cancelHold(btn));
+    }
+
+</script>
+{% endblock %}

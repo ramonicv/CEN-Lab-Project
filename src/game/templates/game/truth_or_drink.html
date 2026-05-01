@@ -1,0 +1,509 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    .question-display {
+        width: 300px;
+        min-height: 180px;
+        border-radius: 16px;
+        background: white;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        font-weight: 500;
+        margin: 1rem auto;
+        border: 3px solid #ddd;
+        padding: 1.2rem;
+        text-align: center;
+        line-height: 1.5;
+        transition: transform 0.2s ease, opacity 0.25s ease;
+        cursor: pointer;
+    }
+
+
+    .rule-box {
+        background: rgba(255,255,255,0.7);
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        margin: 0.5rem auto;
+        max-width: 320px;
+        font-size: 0.95rem;
+        text-align: center;
+        color: #555;
+    }
+
+    .player-turn {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Swipe animation */
+    .swipe-out {
+        transform: translateX(-120px) rotate(-5deg);
+        opacity: 0;
+    }
+
+    .swipe-in {
+        transform: translateX(120px) rotate(5deg);
+        opacity: 0;
+        animation: swipeIn 0.25s forwards ease-out;
+    }
+
+    @keyframes swipeIn {
+        to {
+            transform: translateX(0) rotate(0);
+            opacity: 1;
+        }
+    }
+
+    /* Action buttons */
+    .action-row {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .game-btn {
+        font-weight: 600;
+        padding: 10px 14px;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        border: none;
+        cursor: pointer;
+    }
+
+    #truth-btn {
+        background-color: #4CAF50;
+        color: white;
+        font-size: 1rem;
+        padding: 12px 22px;
+    }
+
+    #drink-btn {
+        background-color: #e74c3c;
+        color: white;
+        font-size: 1rem;
+        padding: 12px 22px;
+    }
+
+    #skip-btn {
+        background-color: rgba(255,255,255,0.9);
+        border: 2px solid #6c757d !important;
+        color: #2c2c2c;
+    }
+
+    #restart-btn {
+        background-color: #ffc107;
+        color: #1f1f1f;
+    }
+
+    /* Hold to go back */
+    #back-button {
+        position: relative;
+        overflow: hidden;
+        background-color: rgba(255,255,255,0.9);
+        border: 2px solid #6c757d !important;
+        color: #2c2c2c;
+    }
+
+    #back-button::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 3px;
+        width: 0%;
+        background: #f0ad4e;
+        transition: width 2s linear;
+    }
+
+    #back-button.holding::after {
+        width: 100%;
+    }
+
+    .game-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.25); }
+    .game-btn:active { transform: scale(0.96); }
+
+
+    #questions-left { font-size: 0.9rem; color: #888; }
+
+    .result-flash {
+        font-size: 1rem;
+        font-weight: 700;
+        min-height: 1.5rem;
+        transition: opacity 0.3s ease;
+    }
+
+    .result-truth { color: #2e7d32; }
+    .result-drink { color: #c62828; }
+    .result-skip  { color: #888; }
+</style>
+
+<div class="center-page text-center">
+    <h1 class="fw-bold">Truth or Drink</h1>
+
+    <p class="player-turn" id="player-turn">Loading...</p>
+
+    <!-- Question card -->
+    <div class="question-display" id="question-display" onclick="nextQuestion()">
+        <span id="question-text">Tap to reveal your first question!</span>
+    </div>
+
+    <div class="rule-box">
+        Answer truthfully — or <strong>drink!</strong>
+    </div>
+
+    <p id="questions-left" class="mt-1"></p>
+
+    <div class="result-flash" id="result-flash"></div>
+
+    <!-- Skip / Restart / Back -->
+    <div class="action-row mt-2">
+        <button class="game-btn" id="back-button">Hold to Go Back</button>
+        <button class="game-btn" id="skip-btn" onclick="nextQuestion()">Skip</button>
+        <button class="game-btn" id="restart-btn" onclick="restartGame()">Restart</button>
+    </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'chupi_players';
+const GAME_KEY    = 'chupi_tod';
+
+const ALL_QUESTIONS = [
+    { text: "Have you ever been to a club or party you weren't supposed to be at?" },
+    { text: "Have you ever skipped class for something more fun?" },
+    { text: "Have you ever lied to get out of a commitment?" },
+    { text: "Have you ever had a crush on more than one person at the same time?" },
+    { text: "What's the weirdest dream you've ever had?" },
+    { text: "What's the most awkward thing you've ever said while flirting?" },
+    { text: "Do you prefer watching movies alone or with someone else?" },
+    { text: "What's a goal or dream you still want to accomplish?" },
+    { text: "Have you ever slacked off at work or school?" },
+    { text: "Who was the worst group project partner you've had?" },
+    { text: "What's your favorite and least favorite class?" },
+    { text: "Have you ever fallen asleep in class?" },
+    { text: "Have you ever posted something online and regretted it?" },
+    { text: "Have you ever given or gotten a really awkward hug?" },
+    { text: "What's the most embarrassing thing that's happened to you in public?" },
+    { text: "Do you think you're a good communicator in relationships?" },
+    { text: "How many apps do you have on your phone that you never use?" },
+    { text: "Have you ever been in a secret friendship or relationship?" },
+    { text: "Who was the last person you texted?" },
+    { text: "Have you ever kept a big secret from your friends?" },
+    { text: "Do you have any secret talents?" },
+    { text: "Have you ever been blackmailed (even jokingly)?" },
+    { text: "Have you ever had a crush on a fictional character? If so, who?" },
+    { text: "Have you ever gotten into a serious argument?" },
+    { text: "Where did you go on your first date?" },
+    { text: "Have you ever been in trouble with the police or school?" },
+    { text: "Describe your first real kiss. Then describe your last kiss." },
+    { text: "Have you ever participated in ding-dong-ditch?" },
+    { text: "Have you ever regretted a relationship or situationship?" },
+    { text: "Have you ever had a crush on the same person as your friend?" },
+    { text: "Have you ever been skinny dipping?" },
+    { text: "Have you ever been the subject of a made-up rumor?" },
+    { text: "What's the most embarrassing thing that's happened on a date?" },
+    { text: "What's your craziest college story?" },
+    { text: "If you could meet anyone in the afterlife, who would it be?" },
+    { text: "What color is your underwear?" },
+    { text: "What do you think is your 'type'?" },
+    { text: "Have you ever walked in on someone or been walked in on?" },
+    { text: "Would you ever consider being in an open relationship?" },
+    { text: "Have you ever given a fake number to someone who was hitting on you?" },
+    { text: "Do you tend to judge people based on how they look?" },
+    { text: "Have you ever done something you immediately regretted?" },
+    { text: "Who was the first person you fell in love with?" },
+    { text: "What's your biggest regret?" },
+    { text: "What's more important to you, a relationship or your career?" },
+    { text: "Have you ever cried in public?" },
+    { text: "Have you had a recurring nightmare?" },
+    { text: "What do you think people misjudge you about?" },
+    { text: "What's something you dislike about your own habits?" },
+    { text: "Do you believe in monogamy?" },
+    { text: "What do you think shaped you the most growing up?" },
+    { text: "Are you close to your parents?" },
+    { text: "What's the best piece of advice you've ever been given?" },
+    { text: "When was the last time you cried?" },
+    { text: "What kind of first impression do people usually have of you?" },
+    { text: "Who would you most like to improve your relationship with?" },
+    { text: "If you could go back 5-10 years and change your life, would you?" },
+    { text: "What's a deal-breaker for you in a relationship?" },
+    { text: "What are your bad habits? Have they improved?" },
+    { text: "Do you think you're happier than the average person?" },
+    { text: "Have you ever worn the same outfit multiple days in a row?" },
+    { text: "What is your least favorite animal?" },
+    { text: "Where's the worst place you've ever gotten a sunburn?" },
+    { text: "What's the most embarrassing photo on your phone?" },
+    { text: "What do you do when you run out of toilet paper?" },
+    { text: "Have you ever attended a concert completely drunk?" },
+    { text: "Have you ever had a super embarrassing accident?" },
+    { text: "How do you feel about PDA (public displays of affection)?" },
+    { text: "Has your house ever been egged?" },
+    { text: "What about you do you think gives people 'the ick'?" },
+    { text: "Can you spell 'colonel'?" },
+    { text: "What's the most daring thing you've done while drunk?" },
+    { text: "What's the weirdest food you've ever tried?" },
+    { text: "Do you currently have any expired food in your fridge?" },
+    { text: "What's the funniest joke you know by heart?" },
+    { text: "Have you ever practiced a speech or conversation in a mirror?" },
+    { text: "What reality show do you think you could win?" },
+    { text: "Have you ever had an imaginary friend?" },
+    { text: "Which fashion trend are you embarrassed about?" },
+    { text: "What's your Roman Empire?" },
+    { text: "What's your favorite guilty pleasure snack?" },
+    { text: "Who's your favorite celebrity family?" },
+    { text: "Is there anything you wouldn't do for money?" },
+    { text: "How many selfies do you take in a week?" },
+    { text: "You're given $1 million — what are you buying?" },
+    { text: "Have you ever bought a self-help book?" },
+    { text: "What do you think is your best feature?" },
+    { text: "Have you ever lied on a dating app?" },
+    { text: "What do you usually wear to sleep?" },
+    { text: "If you were a fast food restaurant, which one would you be?" },
+    { text: "What's your guilty pleasure song?" },
+    { text: "Have you ever gotten a speeding ticket?" },
+    { text: "What are your three biggest red flags?" },
+    { text: "What's a reason you'd quit your job immediately?" },
+    { text: "If you could have dinner with any historical figure, who?" },
+    { text: "What's the craziest thing you've done on a dare?" },
+    { text: "If you could live in any fictional world, where?" },
+    { text: "What's the first thing you'd do if you won the lottery?" },
+    { text: "What's the most surprising thing in your bag right now?" },
+    { text: "What's the weirdest thing you're obsessed with online?" },
+    { text: "What would you do on a deserted island?" },
+    { text: "Do you sleep with a fitted and flat sheet?" },
+    { text: "Did you ever get detention?" },
+    { text: "Do you prefer going out or staying in?" },
+    { text: "Waffles or pancakes?" },
+    { text: "Do you pee in the shower?" },
+    { text: "Have you ever had your fortune told?" },
+    { text: "Do you believe in ghosts?" },
+    { text: "What are three things you couldn't live without?" },
+    { text: "Fries or tater tots?" },
+    { text: "If you had no consequences for a day, what would you do?" },
+    { text: "Do you know your Myers-Briggs type?" },
+    { text: "Do you believe in astrology?" },
+    { text: "Do you follow the five-second rule?" },
+    { text: "Would you accept an arranged marriage?" },
+    { text: "Do you prefer subtitles?" },
+    { text: "Would you spend a weekend in a haunted house for $1,000?" },
+    { text: "Have you ever been caught sleepwalking?" },
+    { text: "If you had to give up one food forever, what would it be?" },
+    { text: "What's your go-to shower song?" },
+    { text: "Who was your first celebrity crush?" },
+    { text: "What's your go-to comfort food?" },
+    { text: "What's your biggest pet peeve?" },
+    { text: "What's the most romantic thing someone could do?" },
+    { text: "Do you believe in soulmates?" },
+    { text: "What do you look for in a partner?" },
+    { text: "What was the last reality show you watched?" },
+    { text: "How would you propose to someone?" },
+    { text: "Have you ever gone on a date just for free food?" },
+    { text: "How many pillows do you sleep with?" },
+    { text: "What's the furthest you've gone on a first date?" },
+    { text: "How long did it take you to finish your last book?" },
+    { text: "Do you eat dinner in front of the TV?" },
+    { text: "If you could rename yourself, what would it be?" },
+    { text: "What's your favorite way to show affection?" },
+    { text: "How many exes are still in your contacts?" },
+    { text: "What animal do you think I resemble?" },
+    { text: "Did you ever skip class?" },
+    { text: "Favorite childhood movie?" },
+    { text: "Dream pet?" },
+    { text: "Who would you want in a zombie apocalypse?" },
+    { text: "Would you kiss the person next to you?" },
+    { text: "Who's the funniest person here?" },
+    { text: "Have you ever had a crush on someone in this room?" },
+    { text: "How many people here have you had a crush on?" },
+    { text: "Have you ever lied about your age?" },
+    { text: "Who's the worst dancer here?" },
+    { text: "What's something you've Googled that you're embarrassed about?" },
+    { text: "Who here would survive the longest in jail?" },
+    { text: "Have you ever stalked someone on social media?" },
+    { text: "What's the last rule you broke?" },
+    { text: "Who is most likely to get arrested?" },
+    { text: "Who has the worst language?" },
+    { text: "If you could switch lives with someone, who?" },
+    { text: "Act out your most awkward moment." },
+    { text: "Is there anyone here you want to be closer friends with?" },
+    { text: "Do you have a hidden talent?" },
+    { text: "Tell us your most embarrassing throwing up story." },
+    { text: "What's the biggest secret you've ever spilled?" },
+    { text: "What's a secret you've never told me?" },
+    { text: "Celebrity crush or real-life crush?" },
+    { text: "What's the most childish thing you still do?" },
+    { text: "What's the last lie you told?" },
+    { text: "Weirdest dream you remember?" },
+    { text: "Would you date someone twice your age?" },
+    { text: "Would you date your high school crush today?" },
+    { text: "Who's the most annoying family member?" },
+    { text: "Least favorite person I've dated?" },
+    { text: "Most embarrassing high school moment?" },
+    { text: "Weirdest question you've been asked on a date?" },
+    { text: "Have you ever canceled plans to hang with someone else?" },
+    { text: "Something you've always wanted to say to me?" },
+    { text: "Your most unpopular opinion?" },
+    { text: "Would you go on a reality dating show?" },
+    { text: "Have you liked someone I liked?" },
+    { text: "Did you think we'd be friends when we met?" },
+    { text: "What kind of friend am I?" },
+    { text: "Would you take $1M to never talk to me again?" },
+    { text: "Do you think we'd still be friends if we met earlier?" },
+    { text: "First impression of me?" },
+    { text: "What do you really think about my parents?" },
+    { text: "What do you think about my friends?" },
+    { text: "Have you ever gone through my things?" },
+    { text: "Something you've always wanted to do but haven't?" },
+    { text: "A gift I gave you that you didn't like?" },
+    { text: "What's a habit of mine that annoys you?" },
+    { text: "Do you feel supported by me?" },
+    { text: "Do you still have feelings for someone from your past?" },
+    { text: "Do you have doubts about your future?" },
+    { text: "Have you ever thought about ending a friendship or relationship?" },
+    { text: "Who is your ideal couple?" },
+    { text: "What does your dream life look like?" },
+];
+
+function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+function buildDeck() {
+    return shuffle(ALL_QUESTIONS.map((q, i) => ({ ...q, id: i })));
+}
+
+function getState() {
+    const raw = localStorage.getItem(GAME_KEY);
+    return raw ? JSON.parse(raw) : null;
+}
+
+function saveState(state) {
+    localStorage.setItem(GAME_KEY, JSON.stringify(state));
+}
+
+function initGame() {
+    const players = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    if (players.length === 0) {
+        window.location.href = "{% url 'signup' %}";
+        return null;
+    }
+    const state = {
+        deck: buildDeck(),
+        currentPlayerIndex: 0,
+        players,
+        currentQuestion: null,
+        questionIndex: 0,
+        totalAsked: 0,
+    };
+    saveState(state);
+    return state;
+}
+
+function renderPlayer(state) {
+    const player = state.players[state.currentPlayerIndex];
+    document.getElementById('player-turn').innerHTML =
+        `<span class="badge" style="background-color:${player.color}; color:black; font-size:1rem; padding:6px 14px; border-radius:12px;">
+            ${player.name}'s turn
+        </span>`;
+}
+
+function updateQuestionsLeft(state) {
+    document.getElementById('questions-left').textContent =
+        state.deck.length > 0 ? `${state.deck.length} questions remaining` : 'All questions used!';
+}
+
+function animateQuestion(question) {
+    const display = document.getElementById('question-display');
+    display.classList.add('swipe-out');
+    setTimeout(() => {
+        document.getElementById('question-text').textContent = question.text;
+        display.classList.remove('swipe-out');
+        display.classList.add('swipe-in');
+        setTimeout(() => display.classList.remove('swipe-in'), 250);
+    }, 150);
+}
+
+function showFlash(msg, cls) {
+    const el = document.getElementById('result-flash');
+    el.textContent = msg;
+    el.className = `result-flash ${cls}`;
+    setTimeout(() => { el.textContent = ''; el.className = 'result-flash'; }, 1500);
+}
+
+function nextQuestion(autoAdvance = false) {
+    let state = getState();
+    if (!state) state = initGame();
+    if (!state) return;
+
+    if (state.deck.length === 0) {
+        document.getElementById('question-text').textContent = "You've gone through all the questions! Restart to play again.";
+        document.getElementById('questions-left').textContent = '';
+        return;
+    }
+
+    const question = state.deck.pop();
+    state.currentQuestion = question;
+
+    if (!autoAdvance) {
+        // advance player only on manual next/skip
+        state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.players.length;
+    }
+
+    saveState(state);
+    animateQuestion(question);
+    renderPlayer(state);
+    updateQuestionsLeft(state);
+}
+
+function restartGame() {
+    localStorage.removeItem(GAME_KEY);
+    const state = initGame();
+    if (!state) return;
+    renderPlayer(state);
+    updateQuestionsLeft(state);
+    document.getElementById('question-text').textContent = 'Tap to reveal your first question!';
+    document.getElementById('result-flash').textContent = '';
+}
+
+// Hold to go back - using menu config
+const backConfig = window.MENU_CONFIG.game.backButton;
+const backButton = document.getElementById(backConfig.id);
+let holdTimer = null;
+
+backButton.addEventListener('mousedown', startHold);
+backButton.addEventListener('mouseup', cancelHold);
+backButton.addEventListener('mouseleave', cancelHold);
+backButton.addEventListener('touchstart', startHold);
+backButton.addEventListener('touchend', cancelHold);
+
+function startHold() {
+    backButton.classList.add('holding');
+    holdTimer = setTimeout(() => {
+        window.location.href = backConfig.url;
+    }, backConfig.holdDuration);
+}
+
+function cancelHold() {
+    clearTimeout(holdTimer);
+    backButton.classList.remove('holding');
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    const state = initGame();
+    if (!state) return;
+    renderPlayer(state);
+    updateQuestionsLeft(state);
+});
+</script>
+{% endblock %}

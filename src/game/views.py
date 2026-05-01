@@ -16,3 +16,18 @@ def waterfall(request):
 
 def screw_the_dealer(request):
     return render(request, 'game/screw_the_dealer.html')
+
+def ride_the_bus(request):
+    return render(request, 'game/ride_the_bus.html')
+
+def truth_or_drink(request):
+    return render(request, 'game/truth_or_drink.html')
+
+def fsu_trivia(request):
+    return render(request, 'game/FSU_trivia.html')
+
+def picolo(request):
+    return render(request, 'game/picolo.html')
+
+def imposter(request):
+    return render(request, 'game/imposter.html')

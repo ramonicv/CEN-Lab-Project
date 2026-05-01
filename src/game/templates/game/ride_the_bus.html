@@ -1,0 +1,447 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    .card-display {
+        width: 140px;
+        height: 195px;
+        border-radius: 16px;
+        background: white;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.8rem;
+        font-weight: bold;
+        margin: 0.5rem 6px;
+        border: 3px solid #ddd;
+        transition: transform 0.2s ease, opacity 0.25s ease;
+    }
+
+    .card-display.red { color: #e74c3c; }
+    .card-display.black { color: #2c3e50; }
+    .card-display.facedown {
+        background: linear-gradient(135deg, #2c3e50 25%, #34495e 25%, #34495e 50%, #2c3e50 50%, #2c3e50 75%, #34495e 75%);
+        background-size: 20px 20px;
+        color: white;
+    }
+    .card-suit { font-size: 1.8rem; }
+
+    .cards-row {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 0.5rem auto;
+    }
+
+    .info-box {
+        background: rgba(255,255,255,0.7);
+        border-radius: 12px;
+        padding: 0.8rem 1rem;
+        margin: 0.4rem auto;
+        max-width: 340px;
+        font-size: 1rem;
+        text-align: center;
+    }
+
+    .player-turn {
+        font-size: 1.1rem;
+        font-weight: bold;
+        margin-bottom: 0.3rem;
+    }
+
+    .round-label {
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 0.2rem;
+    }
+
+    .choice-area {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin: 0.5rem auto;
+        max-width: 340px;
+    }
+
+    .choice-btn {
+        flex: 1;
+        padding: 12px 8px;
+        border-radius: 12px;
+        border: 2px solid #aaa;
+        background: white;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .choice-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+
+    .choice-btn:active { transform: scale(0.95); }
+
+    .choice-btn.red-btn { border-color: #e74c3c; color: #e74c3c; }
+    .choice-btn.black-btn { border-color: #2c3e50; color: #2c3e50; }
+
+    .result-msg {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-top: 0.3rem;
+        min-height: 1.6rem;
+    }
+
+    .result-msg.correct { color: #27ae60; }
+    .result-msg.wrong { color: #e74c3c; }
+
+    .swipe-in {
+        animation: swipeIn 0.25s forwards ease-out;
+    }
+
+    @keyframes swipeIn {
+        from {
+            transform: translateX(80px) rotate(6deg);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0) rotate(0);
+            opacity: 1;
+        }
+    }
+
+    /* Hold to go back */
+    #back-button {
+        position: relative;
+        overflow: hidden;
+    }
+
+    #back-button::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 3px;
+        width: 0%;
+        background: #f0ad4e;
+        transition: width 2s linear;
+    }
+
+    #back-button.holding::after {
+        width: 100%;
+    }
+
+    .game-btn {
+        font-weight: 600;
+        padding: 10px 14px;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+
+    #back-button {
+        background-color: rgba(255, 255, 255, 0.9);
+        border: 2px solid #6c757d;
+        color: #2c2c2c;
+    }
+
+    #restart-button {
+        background-color: #ffc107;
+        border: none;
+        color: #1f1f1f;
+    }
+
+    #back-button:hover,
+    #restart-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+    }
+
+    #back-button:active,
+    #restart-button:active {
+        transform: scale(0.96);
+    }
+</style>
+
+<div class="center-page text-center" style="height: auto; min-height: 90vh; padding: 1.5rem 0;">
+    <h1 class="fw-bold mb-1">Ride the Bus</h1>
+
+    <p class="player-turn" id="player-turn">Loading...</p>
+    <p class="round-label" id="round-label">Round 1 of 4</p>
+
+    <div class="cards-row" id="cards-row"></div>
+
+    <div class="info-box" id="info-box">Red or Black?</div>
+    <div class="result-msg" id="result-msg"></div>
+
+    <div class="choice-area" id="choice-area"></div>
+
+    <button class="btn btn-primary btn-lg mt-2" id="next-btn" style="display:none;" onclick="nextStep()">Next</button>
+
+    <p id="cards-left" class="text-muted mt-1 mb-1"></p>
+
+    <div class="mt-2">
+        <button id="back-button" class="game-btn">Hold to Go Back</button>
+        <button id="restart-button" class="game-btn ms-2" onclick="restartGame()">Restart</button>
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = 'chupi_players';
+    const GAME_KEY   = 'chupi_ride_bus';
+
+    const SUITS  = ['\u2660', '\u2663', '\u2665', '\u2666'];
+    const VALUES = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    const RED_SUITS = ['\u2665', '\u2666'];
+    const VAL_NUM = { 'A':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13 };
+
+    const ROUND_PROMPTS = [
+        'Red or Black?',
+        'Higher or Lower?',
+        'In Between or Outside?',
+        'Guess the Suit!'
+    ];
+
+    const ROUND_PENALTIES = [1, 2, 3, 4];
+
+    function buildDeck() {
+        const deck = [];
+        for (const suit of SUITS) {
+            for (const value of VALUES) {
+                deck.push({ value, suit });
+            }
+        }
+        for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+        return deck;
+    }
+
+    function getState() {
+        const raw = localStorage.getItem(GAME_KEY);
+        return raw ? JSON.parse(raw) : null;
+    }
+
+    function saveState(s) {
+        localStorage.setItem(GAME_KEY, JSON.stringify(s));
+    }
+
+    function initGame() {
+        const players = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        if (players.length === 0) {
+            window.location.href = "{% url 'signup' %}";
+            return null;
+        }
+        const state = {
+            deck: buildDeck(),
+            players: players,
+            currentPlayerIndex: 0,
+            round: 0,
+            revealedCards: [],
+            phase: 'guessing',
+        };
+        saveState(state);
+        return state;
+    }
+
+    function renderPlayer(state) {
+        const player = state.players[state.currentPlayerIndex];
+        document.getElementById('player-turn').innerHTML =
+            '<span class="badge" style="background-color:' + player.color + '; color:black; font-size:1rem; padding:6px 14px; border-radius:12px;">' +
+            player.name + '\'s turn</span>';
+    }
+
+    function renderCards(state) {
+        const row = document.getElementById('cards-row');
+        row.innerHTML = '';
+
+        state.revealedCards.forEach((card, i) => {
+            const isRed = RED_SUITS.includes(card.suit);
+            const div = document.createElement('div');
+            div.className = 'card-display ' + (isRed ? 'red' : 'black');
+            div.innerHTML = '<span>' + card.value + '</span><span class="card-suit">' + card.suit + '</span>';
+            row.appendChild(div);
+        });
+
+        if (state.phase === 'guessing' && state.round < 4) {
+            const div = document.createElement('div');
+            div.className = 'card-display facedown';
+            div.innerHTML = '<span style="font-size:2rem;">?</span>';
+            row.appendChild(div);
+        }
+    }
+
+    function renderChoices(state) {
+        const area = document.getElementById('choice-area');
+        area.innerHTML = '';
+
+        if (state.phase !== 'guessing' || state.round >= 4) return;
+
+        if (state.round === 0) {
+            area.innerHTML =
+                '<button class="choice-btn red-btn" onclick="makeGuess(\'red\')">Red</button>' +
+                '<button class="choice-btn black-btn" onclick="makeGuess(\'black\')">Black</button>';
+        } else if (state.round === 1) {
+            area.innerHTML =
+                '<button class="choice-btn" onclick="makeGuess(\'higher\')">Higher</button>' +
+                '<button class="choice-btn" onclick="makeGuess(\'lower\')">Lower</button>';
+        } else if (state.round === 2) {
+            area.innerHTML =
+                '<button class="choice-btn" onclick="makeGuess(\'between\')">In Between</button>' +
+                '<button class="choice-btn" onclick="makeGuess(\'outside\')">Outside</button>';
+        } else if (state.round === 3) {
+            area.innerHTML =
+                '<button class="choice-btn" onclick="makeGuess(\'\u2660\')">\u2660</button>' +
+                '<button class="choice-btn red-btn" onclick="makeGuess(\'\u2665\')">\u2665</button>' +
+                '<button class="choice-btn" onclick="makeGuess(\'\u2663\')">\u2663</button>' +
+                '<button class="choice-btn red-btn" onclick="makeGuess(\'\u2666\')">\u2666</button>';
+        }
+    }
+
+    function renderRound(state) {
+        if (state.round < 4) {
+            document.getElementById('round-label').textContent = 'Round ' + (state.round + 1) + ' of 4';
+            document.getElementById('info-box').textContent = ROUND_PROMPTS[state.round];
+        }
+        document.getElementById('cards-left').textContent = state.deck.length + ' cards remaining';
+    }
+
+    function makeGuess(guess) {
+        let state = getState();
+        if (!state || state.deck.length === 0) return;
+
+        const card = state.deck.pop();
+        const isRed = RED_SUITS.includes(card.suit);
+        const cardNum = VAL_NUM[card.value];
+        let correct = false;
+
+        if (state.round === 0) {
+            correct = (guess === 'red' && isRed) || (guess === 'black' && !isRed);
+        } else if (state.round === 1) {
+            const prevNum = VAL_NUM[state.revealedCards[0].value];
+            if (guess === 'higher') correct = cardNum > prevNum;
+            else correct = cardNum < prevNum;
+        } else if (state.round === 2) {
+            const a = VAL_NUM[state.revealedCards[0].value];
+            const b = VAL_NUM[state.revealedCards[1].value];
+            const lo = Math.min(a, b);
+            const hi = Math.max(a, b);
+            if (guess === 'between') correct = cardNum > lo && cardNum < hi;
+            else correct = cardNum < lo || cardNum > hi;
+        } else if (state.round === 3) {
+            correct = guess === card.suit;
+        }
+
+        state.revealedCards.push(card);
+        state.phase = 'result';
+
+        const player = state.players[state.currentPlayerIndex];
+        const penalty = ROUND_PENALTIES[state.round];
+        const resultMsg = document.getElementById('result-msg');
+        const infoBox = document.getElementById('info-box');
+
+        if (correct) {
+            resultMsg.className = 'result-msg correct';
+            resultMsg.textContent = 'Correct! Give out ' + penalty + ' drink' + (penalty > 1 ? 's' : '') + '!';
+            infoBox.textContent = card.value + card.suit + ' — Nice one!';
+        } else {
+            resultMsg.className = 'result-msg wrong';
+            resultMsg.textContent = 'Wrong! ' + player.name + ' drinks ' + penalty + '!';
+            infoBox.textContent = card.value + card.suit + ' — Tough luck!';
+        }
+
+        state.round++;
+        saveState(state);
+        renderCards(state);
+        renderChoices(state);
+
+        const nextBtn = document.getElementById('next-btn');
+        if (state.round >= 4) {
+            nextBtn.textContent = 'Next Player';
+        } else {
+            nextBtn.textContent = 'Next Round';
+        }
+
+        if (state.deck.length === 0 && state.round >= 4) {
+            nextBtn.textContent = 'Game Over!';
+            nextBtn.disabled = true;
+        }
+
+        nextBtn.style.display = 'inline-block';
+    }
+
+    function nextStep() {
+        let state = getState();
+        if (!state) return;
+
+        if (state.round >= 4) {
+            state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.players.length;
+            state.round = 0;
+            state.revealedCards = [];
+        }
+
+        state.phase = 'guessing';
+        saveState(state);
+
+        document.getElementById('result-msg').textContent = '';
+        document.getElementById('result-msg').className = 'result-msg';
+        document.getElementById('next-btn').style.display = 'none';
+
+        renderPlayer(state);
+        renderRound(state);
+        renderCards(state);
+        renderChoices(state);
+    }
+
+    function restartGame() {
+        localStorage.removeItem(GAME_KEY);
+        const state = initGame();
+        if (!state) return;
+
+        document.getElementById('result-msg').textContent = '';
+        document.getElementById('result-msg').className = 'result-msg';
+        document.getElementById('next-btn').style.display = 'none';
+
+        renderPlayer(state);
+        renderRound(state);
+        renderCards(state);
+        renderChoices(state);
+    }
+
+    const backConfig = window.MENU_CONFIG.game.backButton;
+    const backButton = document.getElementById(backConfig.id);
+    let holdTimer = null;
+
+    backButton.addEventListener("mousedown", startHold);
+    backButton.addEventListener("mouseup", cancelHold);
+    backButton.addEventListener("mouseleave", cancelHold);
+    backButton.addEventListener("touchstart", startHold);
+    backButton.addEventListener("touchend", cancelHold);
+
+    function startHold() {
+        backButton.classList.add("holding");
+        holdTimer = setTimeout(() => {
+            window.location.href = backConfig.url;
+        }, backConfig.holdDuration);
+    }
+
+    function cancelHold() {
+        clearTimeout(holdTimer);
+        backButton.classList.remove("holding");
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const state = initGame();
+        if (!state) return;
+
+        renderPlayer(state);
+        renderRound(state);
+        renderCards(state);
+        renderChoices(state);
+    });
+</script>
+{% endblock %}
