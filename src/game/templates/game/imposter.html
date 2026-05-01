@@ -2,7 +2,7 @@
 {% load static %}
 {% block content %}
 <style>
-    #back-button {
+    .back-btn {
         position: relative;
         overflow: hidden;
         background-color: rgba(255, 255, 255, 0.9);
@@ -10,7 +10,7 @@
         color: #2c2c2c;
     }
 
-    #back-button::after {
+    .back-btn::after {
         content: "";
         position: absolute;
         left: 0;
@@ -21,7 +21,7 @@
         transition: width 2s linear;
     }
 
-    #back-button.holding::after {
+    .back-btn.holding::after {
         width: 100%;
     }
 
@@ -39,12 +39,12 @@
         color: #1f1f1f;
     }
 
-    #back-button:hover, #restart-button:hover {
+    .back-btn:hover, #restart-button:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 15px rgba(0,0,0,0.25);
     }
 
-    #back-button:active, #restart-button:active {
+    .back-btn:active, #restart-button:active {
         transform: scale(0.96);
     }
 </style>
@@ -64,11 +64,13 @@
         <button class="btn btn-primary btn-lg w-100" onclick="initiateCategorySelection()">Got it, let's go!</button>
     </div>
 
-    <div id="category-modal" class="d-none" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center;">
+    <div id="category-modal" class="d-none" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center;">
         <div class="card p-4 mx-3" style="border-radius: 20px; max-width: 400px; width: 100%;">
             <h4 class="text-center mb-3">Pick a Theme</h4>
             <div id="category-buttons" class="d-grid gap-2"></div>
         </div>
+
+        <button id="back-btn-modal" class="game-btn back-btn mt-3">Hold to Go Back to Game Select</button>
     </div>
 
     <div id="reveal-phase" class="card shadow-sm border-0 p-4 w-100 d-none text-center" style="border-radius: 20px;">
@@ -81,7 +83,10 @@
             </div>
         </div>
         <button id="next-btn" class="btn btn-dark w-100 py-3" onclick="nextReveal()">Next Player</button>
+
+        <button id="back-btn-reveal" class="game-btn back-btn mt-3">Hold to Go Back to Game Select</button>
     </div>
+
 
     <div id="gameplay-phase" class="card shadow-sm border-0 p-4 w-100 d-none text-center" style="border-radius: 20px;">
         <h2 class="mb-4">Discussion Phase</h2>
@@ -92,6 +97,10 @@
         <button class="btn btn-danger btn-lg w-100 py-3 mt-4" style="border-radius:15px; font-weight:bold;" onclick="revealImposter()">
             Reveal the Imposter!
         </button>
+        
+        <div class="mt-3">
+            <button id="back-btn-gameplay" class="game-btn back-btn">Hold to Go Back to Game Select</button>
+        </div>
     </div>
 
     <div id="final-reveal" class="card shadow-sm border-0 p-4 w-100 d-none text-center" style="border-radius: 20px;">
@@ -104,7 +113,7 @@
         </div>
 
         <div class="mt-4">
-            <button id="back-button" class="game-btn">
+            <button id="back-btn-final" class="game-btn back-btn">
                 Hold to Go Back
             </button>
 
@@ -148,6 +157,10 @@
             document.getElementById('rules-phase').classList.add('d-none');
             initiateCategorySelection();
         }
+    setupHoldButton('back-btn-modal');
+    setupHoldButton('back-btn-reveal');
+    setupHoldButton('back-btn-gameplay');
+    setupHoldButton('back-btn-final');
     });
 
     function initiateCategorySelection() {
@@ -257,30 +270,29 @@
         document.getElementById('final-imposter').innerText = gameState.imposter;
     }
 
-
-    /* Hold to go Back - Button Logic */
-    const backButton = document.getElementById("back-button");
+    /* Hold to Go Back - Reusable Logic */
     let holdTimer = null;
-
-    backButton.addEventListener("mousedown", startHold);
-    backButton.addEventListener("mouseup", cancelHold);
-    backButton.addEventListener("mouseleave", cancelHold);
-    backButton.addEventListener("touchstart", (e) => {
-        e.preventDefault(); // Prevents mobile tap-hold menus
-        startHold();
-    });
-    backButton.addEventListener("touchend", cancelHold);
-
-    function startHold() {
-        backButton.classList.add("holding");
+ 
+    function startHold(btn) {
+        btn.classList.add('holding');
         holdTimer = setTimeout(() => {
             window.location.href = "{% url 'game_select' %}";
-        }, 2000); // 2 seconds to trigger
+        }, 2000);
     }
-
-    function cancelHold() {
+ 
+    function cancelHold(btn) {
         clearTimeout(holdTimer);
-        backButton.classList.remove("holding");
+        btn.classList.remove('holding');
+    }
+ 
+    function setupHoldButton(id) {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.addEventListener('mousedown', () => startHold(btn));
+        btn.addEventListener('mouseup', () => cancelHold(btn));
+        btn.addEventListener('mouseleave', () => cancelHold(btn));
+        btn.addEventListener('touchstart', (e) => { e.preventDefault(); startHold(btn); });
+        btn.addEventListener('touchend', () => cancelHold(btn));
     }
 
 </script>
