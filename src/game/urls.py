@@ -12,5 +12,5 @@ urlpatterns = [
     path('ride_the_bus/', views.ride_the_bus, name='ride_the_bus'),
     path('truth_or_drink/', views.truth_or_drink, name='truth_or_drink'),
     path('fsu_trivia/', views.fsu_trivia, name='fsu_trivia'),
+    path('picolo/', views.picolo, name='picolo'),
 ]
-

@@ -25,3 +25,6 @@ def truth_or_drink(request):
 
 def fsu_trivia(request):
     return render(request, 'game/FSU_trivia.html')
+
+def picolo(request):
+    return render(request, 'game/picolo.html')

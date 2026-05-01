@@ -1,0 +1,353 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    .prompt-card {
+        width: 280px;
+        min-height: 180px;
+        border-radius: 16px;
+        background: white;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin: 1rem auto;
+        padding: 1.5rem;
+        border: 3px solid #ddd;
+        text-align: center;
+        transition: transform 0.2s ease, opacity 0.25s ease;
+    }
+
+    .prompt-card .category-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 0.5rem;
+        opacity: 0.8;
+    }
+
+    .prompt-card.drink { border-color: #e74c3c; color: #e74c3c; }
+    .prompt-card.challenge { border-color: #e67e22; color: #e67e22; }
+    .prompt-card.vote { border-color: #3498db; color: #3498db; }
+    .prompt-card.rule { border-color: #9b59b6; color: #9b59b6; }
+    .prompt-card.group { border-color: #1abc9c; color: #1abc9c; }
+
+    .player-turn {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Card Swipe Animation */
+    .swipe-out {
+        transform: translateX(-120px) rotate(-8deg);
+        opacity: 0;
+    }
+
+    .swipe-in {
+        transform: translateX(120px) rotate(8deg);
+        opacity: 0;
+        animation: swipeIn 0.25s forwards ease-out;
+    }
+
+    @keyframes swipeIn {
+        to {
+            transform: translateX(0) rotate(0);
+            opacity: 1;
+        }
+    }
+
+    /*Hold to go back - button */
+    #back-button {
+        position: relative;
+        overflow: hidden;
+    }
+
+    #back-button::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 3px;
+        width: 0%;
+        background: #f0ad4e;
+        transition: width 2s linear;
+    }
+
+    #back-button.holding::after {
+        width: 100%;
+    }
+
+    .game-btn {
+        font-weight: 600;
+        padding: 10px 14px;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+
+    #back-button {
+        background-color: rgba(255, 255, 255, 0.9);
+        border: 2px solid #6c757d;
+        color: #2c2c2c;
+    }
+
+    #restart-button {
+        background-color: #ffc107;
+        border: none;
+        color: #1f1f1f;
+    }
+
+    #back-button:hover,
+    #restart-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+    }
+
+    #back-button:active,
+    #restart-button:active {
+        transform: scale(0.96);
+    }
+
+</style>
+
+<div class="center-page text-center">
+    <h1 class="fw-bold">Picolo</h1>
+
+    <p class="player-turn" id="player-turn">Loading...</p>
+
+    <div class="prompt-card" id="prompt-card" onclick="nextPrompt()" style="cursor: pointer;">
+        <span class="category-label" id="category-label"></span>
+        <span id="prompt-text">Tap to start!</span>
+    </div>
+
+    <p id="prompts-left" class="text-muted mt-2"></p>
+
+    <button class="btn btn-primary btn-lg mt-2" id="next-btn" onclick="nextPrompt()">Next Prompt</button>
+
+    <div class="mt-3">
+        <button id="back-button" class="game-btn">
+            Hold to Go Back
+        </button>
+
+        <button id="restart-button"
+                class="game-btn ms-2"
+                onclick="restartGame()">
+            Restart
+        </button>
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = 'chupi_players';
+    const GAME_KEY = 'chupi_picolo';
+
+    const PROMPTS = [
+        { text: '{P}, drink 2 sips!', cat: 'drink' },
+        { text: '{P}, take 3 sips!', cat: 'drink' },
+        { text: '{P} and {P2}, both drink 2!', cat: 'drink' },
+        { text: 'Everyone whose name starts with the same letter as {P}, drink!', cat: 'drink' },
+        { text: '{P}, give out 3 sips to anyone.', cat: 'drink' },
+        { text: 'If you have a tattoo, drink 2.', cat: 'drink' },
+        { text: 'If you are wearing white, drink!', cat: 'drink' },
+        { text: 'Shortest person drinks.', cat: 'drink' },
+        { text: 'Tallest person drinks.', cat: 'drink' },
+        { text: 'Last person to raise their hand drinks 3.', cat: 'drink' },
+        { text: '{P}, do your best dance move or drink 3.', cat: 'challenge' },
+        { text: '{P}, show your last selfie or drink 2.', cat: 'challenge' },
+        { text: '{P} and {P2}, arm wrestle. Loser drinks 3.', cat: 'challenge' },
+        { text: '{P}, let someone send a text from your phone or drink 4.', cat: 'challenge' },
+        { text: '{P}, do 10 push-ups or drink 3.', cat: 'challenge' },
+        { text: '{P}, speak in an accent until your next turn or drink 2.', cat: 'challenge' },
+        { text: '{P}, say something nice about {P2} or drink 2.', cat: 'challenge' },
+        { text: '{P}, let the group pick a song and you have to dance to it, or drink 3.', cat: 'challenge' },
+        { text: '{P}, hold your breath for 15 seconds or drink 2.', cat: 'challenge' },
+        { text: '{P}, call the 3rd contact in your phone and say hi, or drink 4.', cat: 'challenge' },
+        { text: 'Vote: who is most likely to ghost someone? That person drinks 2.', cat: 'vote' },
+        { text: 'Vote: who is most likely to become famous? That person gives out 3 sips.', cat: 'vote' },
+        { text: 'Vote: who is most likely to cry at a movie? That person drinks 2.', cat: 'vote' },
+        { text: 'Vote: who is the worst driver here? That person drinks 3.', cat: 'vote' },
+        { text: 'Vote: who talks the most? That person drinks 2.', cat: 'vote' },
+        { text: 'Vote: who would survive the longest in a zombie apocalypse? Everyone else drinks 2.', cat: 'vote' },
+        { text: 'Vote: who is the most dramatic? That person drinks 2.', cat: 'vote' },
+        { text: 'Vote: who takes the longest to get ready? That person drinks 3.', cat: 'vote' },
+        { text: 'Vote: who is most likely to end up on reality TV? That person drinks 2.', cat: 'vote' },
+        { text: 'Vote: who is the biggest flirt here? That person drinks 3.', cat: 'vote' },
+        { text: 'New rule: no saying first names. If you do, drink 1.', cat: 'rule' },
+        { text: 'New rule: no pointing. If you point, drink 1.', cat: 'rule' },
+        { text: 'New rule: you must say "cheers" before every sip. Forget and drink 2 more.', cat: 'rule' },
+        { text: 'New rule: no using your phone. First person caught drinks 3.', cat: 'rule' },
+        { text: 'New rule: switch seats with {P}. If you refuse, drink 2.', cat: 'rule' },
+        { text: 'New rule: speak only in questions until the next rule card. Break it, drink 1.', cat: 'rule' },
+        { text: 'New rule: every time you drink, compliment someone first.', cat: 'rule' },
+        { text: 'New rule: no saying "drink". If you do, you drink 2.', cat: 'rule' },
+        { text: 'New rule: before you drink, you have to make eye contact with {P}.', cat: 'rule' },
+        { text: 'New rule: no laughing. First to laugh drinks 2.', cat: 'rule' },
+        { text: 'Everyone drink 2! No exceptions.', cat: 'group' },
+        { text: 'Waterfall! {P} starts, everyone follows.', cat: 'group' },
+        { text: 'Everyone point at who you think is the drunkest. That person drinks 3.', cat: 'group' },
+        { text: 'Rock paper scissors tournament! Loser of each round drinks 1.', cat: 'group' },
+        { text: 'Everyone say a word that rhymes with "drink". First to fail drinks 2.', cat: 'group' },
+        { text: 'Categories: {P} picks a category. Go around, first to fail drinks 2.', cat: 'group' },
+        { text: 'Toast time! Everyone raise your glass and drink together.', cat: 'group' },
+        { text: 'Staring contest: {P} vs {P2}. First to blink drinks 3.', cat: 'group' },
+        { text: 'Everyone take a sip if you have ever been to another country.', cat: 'group' },
+        { text: 'Trivia: {P} asks a question. First wrong answer drinks 2.', cat: 'group' },
+    ];
+
+    const CAT_LABELS = {
+        drink: 'Drink',
+        challenge: 'Challenge',
+        vote: 'Vote',
+        rule: 'Rule',
+        group: 'Group',
+    };
+
+    function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    function getState() {
+        const raw = localStorage.getItem(GAME_KEY);
+        if (raw) return JSON.parse(raw);
+        return null;
+    }
+
+    function saveState(state) {
+        localStorage.setItem(GAME_KEY, JSON.stringify(state));
+    }
+
+    function initGame() {
+        const players = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        if (players.length === 0) {
+            window.location.href = "{% url 'signup' %}";
+            return;
+        }
+        const state = {
+            prompts: shuffle([...PROMPTS]),
+            currentPlayerIndex: 0,
+            players: players,
+            promptIndex: 0,
+        };
+        saveState(state);
+        return state;
+    }
+
+    function pickPlayer(players, exclude) {
+        let pool = players.filter(function(p) { return p.name !== exclude; });
+        if (pool.length === 0) pool = players;
+        return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    function fillPlaceholders(text, players, currentPlayer) {
+        var result = text;
+        if (result.indexOf('{P2}') !== -1) {
+            var p2 = pickPlayer(players, currentPlayer.name);
+            var badge2 = '<span class="badge" style="background-color:' + p2.color + '; color:black; padding:3px 8px; border-radius:8px;">' + p2.name + '</span>';
+            result = result.replace('{P2}', badge2);
+        }
+        if (result.indexOf('{P}') !== -1) {
+            var badge1 = '<span class="badge" style="background-color:' + currentPlayer.color + '; color:black; padding:3px 8px; border-radius:8px;">' + currentPlayer.name + '</span>';
+            result = result.replace('{P}', badge1);
+        }
+        return result;
+    }
+
+    function render(state) {
+        var player = state.players[state.currentPlayerIndex];
+        document.getElementById('player-turn').innerHTML =
+            '<span class="badge" style="background-color:' + player.color + '; color:black; font-size:1rem; padding:6px 14px; border-radius:12px;">' +
+            player.name + '\'s turn</span>';
+        var remaining = state.prompts.length - state.promptIndex;
+        document.getElementById('prompts-left').textContent = remaining + ' prompts remaining';
+    }
+
+    function animatePrompt(promptData, players, currentPlayer) {
+        var card = document.getElementById('prompt-card');
+
+        card.classList.add('swipe-out');
+
+        setTimeout(function() {
+            card.className = 'prompt-card ' + promptData.cat;
+            document.getElementById('category-label').textContent = CAT_LABELS[promptData.cat];
+            document.getElementById('prompt-text').innerHTML = fillPlaceholders(promptData.text, players, currentPlayer);
+
+            card.classList.remove('swipe-out');
+            card.classList.add('swipe-in');
+
+            setTimeout(function() {
+                card.classList.remove('swipe-in');
+            }, 250);
+        }, 150);
+    }
+
+    function nextPrompt() {
+        var state = getState();
+        if (!state) state = initGame();
+
+        if (state.promptIndex >= state.prompts.length) {
+            document.getElementById('prompt-text').textContent = 'No more prompts! Game over.';
+            document.getElementById('category-label').textContent = '';
+            document.getElementById('next-btn').disabled = true;
+            return;
+        }
+
+        var prompt = state.prompts[state.promptIndex];
+        var player = state.players[state.currentPlayerIndex];
+
+        animatePrompt(prompt, state.players, player);
+
+        state.promptIndex++;
+        state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.players.length;
+        saveState(state);
+        render(state);
+    }
+
+    function restartGame() {
+        localStorage.removeItem(GAME_KEY);
+        var state = initGame();
+        render(state);
+
+        var card = document.getElementById('prompt-card');
+        card.className = 'prompt-card';
+        document.getElementById('category-label').textContent = '';
+        document.getElementById('prompt-text').textContent = 'Tap to start!';
+        document.getElementById('next-btn').disabled = false;
+    }
+
+    /*Hold to go Back - Button Logic*/
+    var backButton = document.getElementById("back-button");
+    var holdTimer = null;
+
+    backButton.addEventListener("mousedown", startHold);
+    backButton.addEventListener("mouseup", cancelHold);
+    backButton.addEventListener("mouseleave", cancelHold);
+    backButton.addEventListener("touchstart", startHold);
+    backButton.addEventListener("touchend", cancelHold);
+
+    function startHold() {
+        backButton.classList.add("holding");
+
+        holdTimer = setTimeout(function() {
+            window.location.href = "{% url 'game_select' %}";
+        }, 2000);
+    }
+
+    function cancelHold() {
+        clearTimeout(holdTimer);
+        backButton.classList.remove("holding");
+    }
+
+    window.addEventListener('DOMContentLoaded', function() {
+        var state = initGame();
+        render(state);
+    });
+</script>
+{% endblock %}
