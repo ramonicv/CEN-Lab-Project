@@ -51,6 +51,7 @@
 
 <div id="game-container" class="center-page">
     
+
     <div id="rules-phase" class="card shadow-sm border-0 p-4 w-100" style="border-radius: 20px;">
         <h2 class="text-center mb-3">How to Play</h2>
         <ul class="text-start mb-4 text-muted">
@@ -59,21 +60,8 @@
             <li>Take turns giving a <strong>one-word clue</strong> about your word.</li>
             <li>Discuss and vote: If you catch the imposter, you win! If they blend in, they win.</li>
         </ul>
-        <button class="btn btn-primary btn-lg w-100" onclick="goToSetup()">Got it, let's go!</button>
-    </div>
-
-    <div id="setup-phase" class="card shadow-sm border-0 p-4 w-100 d-none" style="border-radius: 20px;">
-        <h2 class="text-center mb-4">Who's Playing?</h2>
         <div id="setup-error" class="alert alert-danger d-none"></div>
-        
-        <div id="player-inputs">
-            <input type="text" class="form-control mb-2 p-name" placeholder="Player 1">
-            <input type="text" class="form-control mb-2 p-name" placeholder="Player 2">
-            <input type="text" class="form-control mb-2 p-name" placeholder="Player 3">
-            <input type="text" class="form-control mb-2 p-name" placeholder="Player 4">
-        </div>
-        <button class="btn btn-sm btn-outline-secondary mb-3" onclick="addInput()">+ Add Player</button>
-        <button class="btn btn-success btn-lg w-100" onclick="showCategoryModal()">Choose Category</button>
+        <button class="btn btn-primary btn-lg w-100" onclick="initiateCategorySelection()">Got it, let's go!</button>
     </div>
 
     <div id="category-modal" class="d-none" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center;">
@@ -97,7 +85,9 @@
 
     <div id="gameplay-phase" class="card shadow-sm border-0 p-4 w-100 d-none text-center" style="border-radius: 20px;">
         <h2 class="mb-4">Discussion Phase</h2>
-        <p class="text-muted">Take turns giving clues. Once everyone has spoken, discuss who the imposter might be!</p>
+        <p class="text-muted">Take turns giving clues. Once everyone has spoken, discuss who the imposter might be.
+            Eliminate players by voting for the imposter. If you catch them, you win! If they blend in, they win!
+        </p>
         
         <button class="btn btn-danger btn-lg w-100 py-3 mt-4" style="border-radius:15px; font-weight:bold;" onclick="revealImposter()">
             Reveal the Imposter!
@@ -127,6 +117,9 @@
 </div>
 
 <script>
+    const STORAGE_KEY = 'chupi_players'; //Key to load players
+    const RULES_VIEWED_KEY = 'imposter_rules_viewed';
+    
     const wordBank = {
         "Animals": ["Elephant", "Penguin", "Honey Badger", "Kangaroo", "Axolotl"],
         "Food": ["Sushi", "Lasagna", "Poutine", "Guacamole", "Croissant"],
@@ -142,31 +135,43 @@
         currentIndex: 0
     };
 
-    function goToSetup() {
-        document.getElementById('rules-phase').classList.add('d-none');
-        document.getElementById('setup-phase').classList.remove('d-none');
+    // Load players from signup.html storage
+    function getRegisteredPlayers() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
     }
 
-    function addInput() {
-        const container = document.getElementById('player-inputs');
-        const input = document.createElement('input');
-        input.className = 'form-control mb-2 p-name';
-        input.placeholder = `Player ${container.querySelectorAll('input').length + 1}`;
-        container.appendChild(input);
-    }
+    // Check rules visibility on load
+    window.addEventListener('DOMContentLoaded', () => {
+        const hasViewedRules = localStorage.getItem(RULES_VIEWED_KEY);
+        if (hasViewedRules) {
+            document.getElementById('rules-phase').classList.add('d-none');
+            initiateCategorySelection();
+        }
+    });
 
-    function showCategoryModal() {
-        const nameInputs = document.querySelectorAll('.p-name');
-        const names = Array.from(nameInputs).map(i => i.value.trim()).filter(v => v !== "");
+    function initiateCategorySelection() {
+        const players = getRegisteredPlayers();
         
-        if (names.length < 4) {
+        // Rule: Prevent game if < 4 players
+        if (players.length < 4) {
             const err = document.getElementById('setup-error');
-            err.innerText = "Minimum 4 players required!";
+            err.innerText = `You only have ${players.length} players. Please go back to signup and add at least 4.`;
             err.classList.remove('d-none');
+            document.getElementById('rules-phase').classList.remove('d-none');
             return;
         }
 
-        gameState.players = names;
+        // Set rules as viewed after first successful entry
+        localStorage.setItem(RULES_VIEWED_KEY, 'true');
+        
+        // Fix: Use the full player object/name to ensure uniqueness
+        gameState.players = players.map(p => p.name);
+        
+        showCategoryModal();
+    }
+
+    function showCategoryModal() {
         const modal = document.getElementById('category-modal');
         const btnContainer = document.getElementById('category-buttons');
         btnContainer.innerHTML = '';
@@ -191,12 +196,26 @@
         }
 
         gameState.secretWord = wordBank[selectedCat][Math.floor(Math.random() * wordBank[selectedCat].length)];
-        gameState.imposter = gameState.players[Math.floor(Math.random() * gameState.players.length)];
+        
+        // Bug Fix: Assign imposter by index to avoid duplicate name issues
+        const imposterIndex = Math.floor(Math.random() * gameState.players.length);
+        gameState.imposter = gameState.players[imposterIndex];
         
         document.getElementById('category-modal').style.display = 'none';
-        document.getElementById('setup-phase').classList.add('d-none');
+        document.getElementById('rules-phase').classList.add('d-none');
         document.getElementById('reveal-phase').classList.remove('d-none');
         updateRevealUI();
+    }
+
+    /* Updated Restart Logic */
+    function restartGame() {
+        gameState.currentIndex = 0;
+        
+        // Hide game over screen
+        document.getElementById('final-reveal').classList.add('d-none');
+        
+        // Jump straight to category selection (skipping rules as requested)
+        initiateCategorySelection();
     }
 
     function updateRevealUI() {
@@ -238,28 +257,6 @@
         document.getElementById('final-imposter').innerText = gameState.imposter;
     }
 
-    /* Restart Logic - Resets to Phase 0 (Rules) */
-    function restartGame() {
-        // Reset internal state
-        gameState = {
-            players: [],
-            imposter: "",
-            secretWord: "",
-            currentIndex: 0
-        };
-
-        // Hide all phases
-        document.getElementById('setup-phase').classList.add('d-none');
-        document.getElementById('reveal-phase').classList.add('d-none');
-        document.getElementById('gameplay-phase').classList.add('d-none');
-        document.getElementById('final-reveal').classList.add('d-none');
-        
-        // Show the Rules phase (Phase 0)
-        document.getElementById('rules-phase').classList.remove('d-none');
-        
-        // Clear any previous error messages
-        document.getElementById('setup-error').classList.add('d-none');
-    }
 
     /* Hold to go Back - Button Logic */
     const backButton = document.getElementById("back-button");
