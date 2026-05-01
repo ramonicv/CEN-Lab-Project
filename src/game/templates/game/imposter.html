@@ -254,6 +254,19 @@
     };
 
     function nextReveal() {
+        const wordDisplay = document.getElementById('secret-word-display');
+        if (wordDisplay.classList.contains('d-none')) {
+            // Word hasn't been revealed yet, shake the button as feedback
+            const btn = document.getElementById('next-btn');
+            btn.textContent = 'Tap the card first!';
+            setTimeout(() => {
+                btn.textContent = gameState.currentIndex === gameState.players.length - 1
+                    ? 'Finish Card Reveal'
+                    : 'Next Player';
+            }, 1500);
+            return;
+        }
+
         gameState.currentIndex++;
         if (gameState.currentIndex < gameState.players.length) {
             updateRevealUI();
