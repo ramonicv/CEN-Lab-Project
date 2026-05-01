@@ -28,3 +28,6 @@ def fsu_trivia(request):
 
 def picolo(request):
     return render(request, 'game/picolo.html')
+
+def imposter(request):
+    return render(request, 'game/imposter.html')
