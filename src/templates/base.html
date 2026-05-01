@@ -99,6 +99,98 @@
             }
 
         </style>
+
+        <!-- Menu Configuration -->
+        <script>
+            /**
+             * Centralized Menu Configuration
+             * All menu buttons across the application are configured here
+             */
+            window.MENU_CONFIG = {
+                // Home page buttons
+                home: {
+                    startGame: {
+                        label: 'Start Game',
+                        url: '{% url "signup" %}',
+                        class: 'btn btn-success btn-lg mt-4',
+                        action: 'navigate'
+                    }
+                },
+
+                // Signup page buttons
+                signup: {
+                    clearList: {
+                        label: 'Clear List',
+                        class: 'btn btn-outline-danger me-2',
+                        action: 'custom',
+                        handler: 'clearPlayers'
+                    },
+                    continue: {
+                        label: 'Continue',
+                        id: 'toSignup-btn',
+                        class: 'btn btn-success',
+                        style: 'display:none;',
+                        action: 'navigate',
+                        url: '{% url "game_select" %}'
+                    }
+                },
+
+                // Game select page buttons
+                gameSelect: {
+                    games: [
+                        {
+                            label: 'FSU Trivia',
+                            url: '{% url "fsu_trivia" %}',
+                            class: 'btn btn-lg btn-primary'
+                        },
+                        {
+                            label: 'Waterfall',
+                            url: '{% url "waterfall" %}',
+                            class: 'btn btn-lg btn-primary'
+                        },
+                        {
+                            label: 'Picolo',
+                            url: '{% url "picolo" %}',
+                            class: 'btn btn-lg btn-primary'
+                        },
+                        {
+                            label: 'Screw the Dealer',
+                            url: '{% url "screw_the_dealer" %}',
+                            class: 'btn btn-lg btn-primary'
+                        },
+                        {
+                            label: 'Ride the Bus',
+                            url: '{% url "ride_the_bus" %}',
+                            class: 'btn btn-lg btn-primary'
+                        },
+                        {
+                            label: 'Truth or Drink',
+                            url: '{% url "truth_or_drink" %}',
+                            class: 'btn btn-lg btn-primary'
+                        }
+                    ],
+                    back: {
+                        label: 'Back',
+                        url: '{% url "signup" %}',
+                        class: 'btn btn-outline-secondary btn-sm',
+                        action: 'navigate'
+                    }
+                },
+
+                // Game page buttons
+                game: {
+                    backButton: {
+                        label: 'Hold to Go Back',
+                        id: 'back-button',
+                        class: 'game-btn',
+                        url: '{% url "game_select" %}',
+                        action: 'hold',
+                        holdDuration: 2000,
+                        holdThreshold: 2000
+                    }
+                }
+            };
+        </script>
     </head>
     
     <body>
